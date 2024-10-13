@@ -1,7 +1,29 @@
 #include <iostream>
-#include <GBC/types.h>
+#include <gb/gb.h>
+#include <gb/utils/load_file.h>
+#include <string.h>
 
-int main() {
-	std::cout << "Hello, world\n";
-	return 0;
+int main(int argc, char* argv[]) {
+	try {
+		const char* binary_name = argv[0] ? argv[0] : "<binary>"; 
+		if(argc != 3 && argc != 4) {
+			std::cerr << "Usage: " << binary_name << " <boot rom> <game rom> [save data]\n";
+			return 1;
+		}
+		auto bootrom = gb::load_file(argv[1]);
+		auto cartridgerom = gb::load_file(argv[2]);
+		std::optional<std::vector<uint8_t>> savedata;
+		if(argc >= 4) savedata = gb::load_file(argv[3]);
+		std::cout << "Loaded files\n";
+
+		gb::gameboy_emulator emulator{std::move(bootrom), std::move(cartridgerom), std::move(savedata)};
+		const auto gb_result = emulator.run();
+		std::cout << "Exiting with code " << gb_result << '\n';
+		return gb_result;
+	} catch (const std::exception& e) {
+		char strerror_buf[256]{};
+		strerror_s(strerror_buf, 256, errno);
+		std::cerr << "Uncaught exception:\nerrno is \"" << strerror_buf << "\"\nException: " << e.what() << '\n';
+		return 1;
+	}
 }

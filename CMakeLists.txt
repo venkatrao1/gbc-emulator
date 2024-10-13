@@ -10,7 +10,6 @@ link_libraries(
 	sfml-graphics
 	sfml-window
 	sfml-audio
-	sfml-network
 	sfml-system
 )
 
@@ -31,9 +30,10 @@ include_directories(include)
 if(MSVC)
 	# TODO: more compiler flags, debug vs release builds?
 	add_compile_options(/W4 /WX) # warning level 4, treat warnings as errors
+	add_link_options(/LTCG)
 	if(CMAKE_BUILD_TYPE STREQUAL "Release")
 		add_compile_options(/GL /Gr)
-		add_compile_options(/arch:AVX2 /favor:INTEL64) # for my machine specifically. Ideally I should have a cmake test for this?
+		# add_compile_options(/arch:AVX2 /favor:INTEL64) # for my machine specifically. Ideally I should have a cmake test for this?
 		# add_compile_options(/fp:fast) # unsafe but faster hopefully
 	endif()
 else()
