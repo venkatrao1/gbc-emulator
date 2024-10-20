@@ -14,11 +14,11 @@ int main(int argc, char* argv[]) {
 		auto cartridgerom = gb::load_file(argv[2]);
 		std::optional<std::vector<uint8_t>> savedata;
 		if(argc >= 4) savedata = gb::load_file(argv[3]);
-		std::cout << "Loaded files\n";
+		GB_log_info("Loaded files");
 
 		gb::gameboy_emulator emulator{std::move(bootrom), std::move(cartridgerom), std::move(savedata)};
 		const auto gb_result = emulator.run();
-		std::cout << "Exiting with code " << gb_result << '\n';
+		GB_log_info("Exiting with code {}", gb_result);
 		return gb_result;
 	} catch (const std::exception& e) {
 		char strerror_buf[256]{};

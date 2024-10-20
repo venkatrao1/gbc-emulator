@@ -1,4 +1,4 @@
-This project expects SFML 2.6.0 to be in SFML_DIR.
+This project expects SFML 2.6.1 to be in SFML_DIR.
 
 Example build commands (Windows):
 ```sh

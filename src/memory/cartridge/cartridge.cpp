@@ -8,7 +8,7 @@ namespace gb::memory {
 Cartridge::Cartridge(std::vector<uint8_t> rom, std::optional<std::vector<uint8_t>> save_data)
 	: mapper{std::move(rom), std::move(save_data)}
 {
-	std::cout << "Loaded cartridge with title \"" << title() << "\", version " << version() << '\n';
+	GB_log_info("Loaded cartridge with title \"{}\", version {}", title(), version());
 }
 
 

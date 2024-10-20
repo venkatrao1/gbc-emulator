@@ -16,6 +16,9 @@ public:
 		: cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in)) 
 	{}
 
+	// right now I'm throwing on behavior I never expect to see (illegal reads/writes)
+	// TODO: these should have real behavior.
+
 	uint8_t read(const uint16_t addr) const {
 		using namespace addrs;
 		if(addr < CARTRIDGE_ROM_END) {
@@ -31,6 +34,37 @@ public:
 			return wram[addr - WORK_RAM_BEGIN];
 		} else if (addr < ECHO_RAM_END) {
 			return wram[addr - ECHO_RAM_BEGIN];
+		} else if (addr < OAM_END) {
+			return oam[addr - OAM_BEGIN];
+		} else if (addr < ILLEGAL_MEM_END) {
+			throw GB_exc("Illegal memory read from {:#x}", addr);
+		} else if (addr < IO_MMAP_END) {
+			throw GB_exc("Unimplemented: memory read from {:#x}", addr);
+		} else {
+			return high_mem[addr - IO_MMAP_BEGIN];
+		}
+	}
+
+	void write(const uint16_t addr, const uint8_t data) {
+		using namespace addrs;
+		if(addr < CARTRIDGE_ROM_END) {
+			throw GB_exc("Illegal memory write to {:#x}", addr);
+		} else if (addr < VRAM_END) {
+			vram[addr - VRAM_BEGIN] = data;
+		} else if (addr < CARTRIDGE_RAM_END) {
+			cartridge.write(addr, data);
+		} else if (addr < WORK_RAM_END) {
+			wram[addr - WORK_RAM_BEGIN] = data;
+		} else if (addr < ECHO_RAM_END) {
+			wram[addr - ECHO_RAM_BEGIN] = data;
+		} else if (addr < OAM_END) {
+			oam[addr - OAM_BEGIN] = data;
+		} else if (addr < ILLEGAL_MEM_END) {
+			throw GB_exc("Illegal memory write to {:#x}", addr);
+		} else if (addr < IO_MMAP_END) {
+			throw GB_exc("Unimplemented: memory write to {:#x}", addr);
+		} else {
+			high_mem[addr - IO_MMAP_BEGIN] = data;
 		}
 	}
 
@@ -56,7 +90,7 @@ private:
 	std::array<uint8_t, addrs::IE - addrs::IO_MMAP_BEGIN + 1> high_mem{}; // io regs + hram + ie
 
 	static std::array<uint8_t, 256> get_boot_rom(const std::span<const uint8_t> boot_rom_in) {
-		if(boot_rom_in.size() != 256) throw std::runtime_error("Boot rom has unexpected size " + std::to_string(boot_rom_in.size()));
+		if(boot_rom_in.size() != 256) throw GB_exc("Boot rom has unexpected size {}", boot_rom_in.size());
 		std::array<uint8_t, 256> ret;
 		std::copy(boot_rom_in.begin(), boot_rom_in.end(), ret.begin());
 		return ret;

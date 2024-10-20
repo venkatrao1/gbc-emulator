@@ -6,9 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <iostream>
 #include <optional>
-#include <span>
 #include <stdexcept>
 #include <format>
 #include <vector>
@@ -20,11 +18,11 @@ struct NoMapper {
 
 	NoMapper(std::vector<uint8_t> romIn, std::optional<std::vector<uint8_t>> save_data) {
 		if(save_data.has_value() && save_data->size() > 0) {
-			throw std::runtime_error("Received non-empty save data for NoMapper");
+			throw GB_exc("Received non-empty save data for NoMapper");
 		}
 
 		if(romIn.size() != 32'768) {
-			throw std::runtime_error(std::format("Received non-32k rom for NoMapper: size {}", rom.size()));
+			throw GB_exc("Received non-32k rom for NoMapper: size {}", rom.size());
 		}
 		
 		std::copy(romIn.begin(), romIn.end(), rom.begin());
@@ -32,7 +30,7 @@ struct NoMapper {
 
 	uint8_t read(uint16_t addr) const {
 		if(addr < addrs::CARTRIDGE_ROM_BEGIN || addr > addrs::CARTRIDGE_ROM_END) {
-			throw std::runtime_error(std::format("Invalid read from NoMapper addr {:#x}", addr));
+			throw GB_exc("Invalid read from NoMapper addr {:#x}", addr);
 		}
 
 		return rom[addr];
