@@ -38,7 +38,7 @@ public:
 	// for external (not by the emulated CPU) use
 	std::string title() const {
 		std::string ret;
-		for(uint16_t addr = addrs::TITLE_BEGIN; addr <= addrs::TITLE_END; ++addr) {
+		for(uint16_t addr = addrs::TITLE_BEGIN; addr < addrs::TITLE_END; ++addr) {
 			const char c = read(addr);
 			if(c == '\0') break;
 			ret.push_back(c);
@@ -46,7 +46,8 @@ public:
 		return ret;
 	}
 
-	uint8_t version() const {
+	// return unsigned for easy printing
+	unsigned version() const {
 		return read(addrs::ROM_VERSION);
 	}
 

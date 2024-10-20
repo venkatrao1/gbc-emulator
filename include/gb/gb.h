@@ -2,6 +2,7 @@
 #include <vector>
 
 #include <gb/memory/mmu.h>
+#include <gb/utils/log.h>
 
 namespace gb
 {
@@ -16,7 +17,7 @@ namespace gb
 
 		// the main loop.
 		int run() {
-			std::cout << "Starting gb\n"; 
+			GB_log_info("Starting gb"); 
 			return 0;
 		}
 

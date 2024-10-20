@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gb/utils/print.h>
+#include <gb/utils/log.h>
 #include <gb/memory/memory_map.h>
 
 #include <algorithm>
@@ -40,7 +40,7 @@ struct NoMapper {
 
 	void write(uint16_t addr, [[maybe_unused]] uint8_t data) {
 		// ignore writes to ROM
-		std::cout << "Warning: wrote to ROM address " << print_hex{addr} << ", ignoring\n";
+		GB_log_warn("Wrote to ROM address {:#x}, ignoring", addr);
 	}
 
 	std::array<std::uint8_t, ROM_SIZE> rom;
