@@ -13,12 +13,16 @@ namespace gb::memory {
 class MMU {
 public:
 	MMU(std::vector<uint8_t> boot_rom_in, std::vector<uint8_t> cartridge_rom, std::optional<std::vector<uint8_t>> save_data)
-		: cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in)) 
+		: cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in))
 	{}
 
 	// right now I'm throwing on behavior I never expect to see (illegal reads/writes)
 	// TODO: these should have real behavior.
 
+	// read, as if from the CPU.
+	// other pieces of hardware may be able to read different addresses at different times.
+	// (ex. PPU can read VRAM while drawing, cpu can't)
+	// TODO: more realistic access control for memory
 	uint8_t read(const uint16_t addr) const {
 		using namespace addrs;
 		if(addr < CARTRIDGE_ROM_END) {
@@ -45,6 +49,7 @@ public:
 		}
 	}
 
+	// write, as if from the CPU (see note on read above).
 	void write(const uint16_t addr, const uint8_t data) {
 		using namespace addrs;
 		if(addr < CARTRIDGE_ROM_END) {
@@ -62,6 +67,15 @@ public:
 		} else if (addr < ILLEGAL_MEM_END) {
 			throw GB_exc("Illegal memory write to {:#x}", addr);
 		} else if (addr < IO_MMAP_END) {
+			if(addr >= AUDIOS_BEGIN && addr < AUDIOS_END) {
+				// TODO: audio unimplemented - for now allow writes
+				high_mem[addr - IO_MMAP_BEGIN] = data;
+				return;
+			} else if(addr >= LCDS_BEGIN && addr < LCDS_END) {
+				// TODO: ppu unimplemented - for now allow writes
+				high_mem[addr - IO_MMAP_BEGIN] = data;
+				return;
+			}
 			throw GB_exc("Unimplemented: memory write to {:#x}", addr);
 		} else {
 			high_mem[addr - IO_MMAP_BEGIN] = data;

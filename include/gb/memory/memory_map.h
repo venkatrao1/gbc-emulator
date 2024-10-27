@@ -35,6 +35,7 @@ constexpr uint16_t TIMER_COUNTER{0xFF05}, TIMER_MODULO{0xFF06}, TIMER_CONTROL{0x
 constexpr uint16_t AUDIOS_BEGIN{0xFF10}, AUDIOS_END{0xFF27};
 constexpr uint16_t WAVETABLE_RAM_BEGIN{0xFF30}, WAVETABLE_RAM_END{0xFF40};
 // LCD/Graphics
+constexpr uint16_t LCDS_BEGIN{0xFF40}, LCDS_END{0xFF4C};
 constexpr uint16_t LCD_CONTROL{0xFF40};
 constexpr uint16_t LCD_STATUS{0xFF41};
 constexpr uint16_t LCD_SCROLL_Y{0xFF42}, LCD_SCROLL_X{0xFF43};
