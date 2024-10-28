@@ -24,7 +24,7 @@ struct NoMapper {
 		if(romIn.size() != 32'768) {
 			throw GB_exc("Received non-32k rom for NoMapper: size {}", rom.size());
 		}
-		
+
 		std::copy(romIn.begin(), romIn.end(), rom.begin());
 	}
 
@@ -37,8 +37,9 @@ struct NoMapper {
 	}
 
 	void write(uint16_t addr, [[maybe_unused]] uint8_t data) {
-		// ignore writes to ROM
-		GB_log_warn("Wrote to ROM address {:#x}, ignoring", addr);
+		// TODO: ignore writes to ROM once done with initial impl
+		throw GB_exc("Wrote to ROM address {:#x}", addr);
+		// GB_log_warn("Wrote to ROM address {:#x}, ignoring", addr);
 	}
 
 	std::array<std::uint8_t, ROM_SIZE> rom;

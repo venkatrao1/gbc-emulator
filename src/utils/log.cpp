@@ -9,4 +9,8 @@ std::ostream& operator<<(std::ostream& os, const ANSIEscape& esc) {
 	return os;
 }
 
+std::runtime_error make_error(std::string str) {
+	return std::runtime_error{std::move(str)};
+}
+
 }

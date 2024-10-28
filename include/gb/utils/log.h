@@ -68,6 +68,9 @@ void log(const level lvl, const std::string_view file, const size_t line, std::f
 	std::cout << '\n';
 }
 
+// prevent me from discarding the result of GB_exc
+[[nodiscard]] std::runtime_error make_error(std::string str);
+
 }
 
 #define GB_log_error(fmt, ...) ::gb::log::log(::gb::log::level::ERROR, ::gb::log::trim_src_path(__FILE__), __LINE__, fmt, __VA_ARGS__)
@@ -75,4 +78,4 @@ void log(const level lvl, const std::string_view file, const size_t line, std::f
 #define GB_log_info(fmt, ...) ::gb::log::log(::gb::log::level::INFO, ::gb::log::trim_src_path(__FILE__), __LINE__, fmt, __VA_ARGS__)
 #define GB_log_debug(fmt, ...) ::gb::log::log(::gb::log::level::DEBUG, ::gb::log::trim_src_path(__FILE__), __LINE__, fmt, __VA_ARGS__)
 
-#define GB_exc(fmt, ...) std::runtime_error(std::format("{}:{}: " fmt, ::gb::log::trim_src_path(__FILE__), __LINE__, __VA_ARGS__))
+#define GB_exc(fmt, ...) (::gb::log::make_error(std::format("{}:{}: " fmt, ::gb::log::trim_src_path(__FILE__), __LINE__, __VA_ARGS__)))

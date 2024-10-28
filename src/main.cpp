@@ -5,7 +5,7 @@
 
 int main(int argc, char* argv[]) {
 	try {
-		const char* binary_name = argv[0] ? argv[0] : "<binary>"; 
+		const char* binary_name = argv[0] ? argv[0] : "<binary>";
 		if(argc != 3 && argc != 4) {
 			std::cerr << "Usage: " << binary_name << " <boot rom> <game rom> [save data]\n";
 			return 1;
@@ -17,13 +17,16 @@ int main(int argc, char* argv[]) {
 		GB_log_info("Loaded files");
 
 		gb::gameboy_emulator emulator{std::move(bootrom), std::move(cartridgerom), std::move(savedata)};
-		const auto gb_result = emulator.run();
-		GB_log_info("Exiting with code {}", gb_result);
-		return gb_result;
+		emulator.run();
+		GB_log_info("Exiting with code 0");
+		return 0;
 	} catch (const std::exception& e) {
-		char strerror_buf[256]{};
-		strerror_s(strerror_buf, 256, errno);
-		std::cerr << "Uncaught exception:\nerrno is \"" << strerror_buf << "\"\nException: " << e.what() << '\n';
+		std::cerr << "Uncaught exception: " << e.what() << '\n';
+		if(errno) {
+			char strerror_buf[256]{};
+			strerror_s(strerror_buf, 256, errno);
+			std::cerr << "errno is \"" << strerror_buf << "\"\n";
+		}
 		return 1;
 	}
 }

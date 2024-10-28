@@ -17,14 +17,17 @@ struct gameboy_emulator
 	}
 
 	// the main loop. returns an exit code.
-	int run() {
-		GB_log_info("Starting gb"); 
+	void run() {
+		GB_log_info("Starting gb");
 		uint64_t cycle_count = 0;
-		while(true) {
-			cycle_count += cpu.fetch_execute();
+		try {
+			while(true) {
+				cycle_count += cpu.fetch_execute();
+			}
+		} catch (...) {
+			GB_log_error("Exception raised, CPU state:\n{}", cpu.dump_state());
+			throw;
 		}
-		GB_log_info("Exiting after {} cycles", cycle_count);
-		return 0;
 	}
 
 	memory::MMU mmu;

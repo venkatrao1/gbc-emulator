@@ -80,10 +80,10 @@ struct CPU {
 		// TODO: see if marking some cases unreachable causes better codegen (once all instructions implemented.)
 		if(op_upper5bits < 010) switch(op_low3bits) { // < 0o100
 			case 0:
-				if(op_upper5bits < 4) {
+				if(op_upper5bits < 3) {
 					break;
-				} else { // JR <flag>, e8
-					const bool should_jump = get_flag(op_upper5bits & 3);
+				} else { // JR <flag>, e8 // JR e8
+					const bool should_jump = op_upper5bits == 3 ? true : get_flag(op_upper5bits & 3);
 					const auto offset = static_cast<int8_t>(ld_imm8());
 					if(should_jump) {
 						pc += offset;
@@ -98,14 +98,17 @@ struct CPU {
 					*(BC_DE_HL_SP[op_upper5bits >> 1]) = ld_imm16();
 					return cycles;
 				}
-			case 2: switch(op_upper5bits) {
-				case 04: // LD [HL+], A
-					write(hl++, a());
-					return cycles;
-				case 06: // LD [HL-], A
-					write(hl--, a());
-					return cycles;
-				default: GB_exc("");
+			case 2: {
+				const uint16_t addr = [this, op_upper5bits]{ switch(op_upper5bits >> 1) {
+					default: // unused
+					case 0: return bc;
+					case 1: return de;
+					case 2: return hl++;
+					case 3: return hl--;
+				}}();
+				if(op_upper5bits & 1) a() = read(addr); // LD A, [r16]
+				else write(addr, a()); // LD [r16], A
+				return cycles;
 			}
 			case 3: { // INC r16 / DEC r16
 				Reg16& reg = *(BC_DE_HL_SP[op_upper5bits >> 1]);
@@ -132,22 +135,50 @@ struct CPU {
 				write_r8(op_upper5bits & 7, ld_imm8());
 				return cycles;
 			}
+			case 7: if(op_upper5bits < 4) {
+				flag_z(0), flag_n(0), flag_h(0);
+				switch(op_upper5bits) {
+					case 0: // RLCA
+						a() = std::rotl(a(), 1);
+						flag_c(a() & 1);
+						return cycles;
+					case 1: // RRCA
+						flag_c(a() & 1);
+						a() = std::rotr(a(), 1);
+						return cycles;
+					case 2: { // RLA
+						const bool flagc_next = a() & 0x80;
+						a() = (a() << 1) | static_cast<uint8_t>(flag_c());
+						flag_c(flagc_next);
+						return cycles;
+					}
+					case 3: { // RRA
+						const bool flagc_next = a() & 1;
+						a() = (a() >> 1) | (flag_c() << 7);
+						flag_c(flagc_next);
+						return cycles;
+					}
+				}
+			}
 		} else if (op_upper5bits < 020) { // 0o100 <= op < 0o200 - LD r8, r8
 			if(constexpr static uint8_t OPCODE_HALT{0166}; opcode == OPCODE_HALT) {
 				throw GB_exc("Halt unimplemented!\n{}", dump_state());
 			}
 			write_r8(op_upper5bits & 7, read_r8(op_low3bits));
 			return cycles;
-		} else if (op_upper5bits < 030) { // 0o200 <= op < 0o300 - bitwise ops
-			// all 127 of these opcodes (except halt) load r8.
-			const auto r8 = read_r8(op_low3bits);
-			switch(op_upper5bits) {
-				case 025: // XOR A, r8
+		} else if (op_upper5bits < 030 || op_low3bits == 6) { // 0o200 <= op < 0o300 (also 0o3X6) - bitwise ops and compare
+			// all of these opcodes (except halt) load r8.
+			const auto r8 = op_upper5bits < 030 ? read_r8(op_low3bits) : ld_imm8();
+			switch(op_upper5bits & 7) {
+				case 5: // XOR A, r8 // XOR A, n8
 					a() ^= r8;
 					flag_z(a() == 0), flag_n(0), flag_h(0), flag_c(0);
 					return cycles;
+				case 7: // CP A, r8 // CP A, n8
+					flag_z(a() == r8), flag_n(1), flag_h((a() & 0xF) < (r8 & 0xF)), flag_c(r8 > a());
+					return cycles;
 			}
-		} else { // op >= 0o300 (note that PREFIX is in here, so this includes the 2-byte bitwise ops)
+		} else { // op >= 0o300, (op & 7) != 6 (note that PREFIX is in here, so this includes the 2-byte bitwise ops)
 			const auto push16 = [this, &write, &cycles](const Reg16& reg) -> void {
 				cycles++;
 				write(--sp, reg.hi);
@@ -158,8 +189,6 @@ struct CPU {
 				return lo | (static_cast<uint16_t>(read(sp++)) << 8);
 			};
 			switch(op_low3bits) {
-
-
 				case 0: if(op_upper5bits < 034) { // JP <flag>
 
 				} else switch(op_upper5bits) {
@@ -172,6 +201,16 @@ struct CPU {
 						return cycles;
 					case 037: throw GB_exc("");
 				};
+				case 1: if(op_upper5bits & 1) switch(op_upper5bits) {
+					case 031:
+						pc = pop16();
+						cycles++;
+						return cycles;
+					default: throw GB_exc("");
+				} else { // POP r16
+					*(BC_DE_HL_AF[(op_upper5bits >> 1) & 3]) = pop16();
+					return cycles;
+				}
 				case 2: if(op_upper5bits < 034) { // JP <flag>, a16
 					break;
 				} else switch(op_upper5bits) {
@@ -198,16 +237,44 @@ struct CPU {
 						if(bit_op_upper5bits < 010) { // op <= 0o100 - these ops modify r8 in place
 							uint8_t data = read_r8(bit_op_lower3bits);
 							switch(bit_op_b3) {
-								case 0: // RLC R8
-								case 1:
-								case 2:
-								case 3:
-								case 4:
-								case 5:
-								case 6:
-								case 7:
+								case 0: // RLC r8
+									data = std::rotl(data, 1);
+									flag_c(data & 1);
+									break;
+								case 1: // RRC r8
+									flag_c(data & 1);
+									data = std::rotr(data, 1);
+									break;
+								case 2: { // RL r8
+									const bool flagc_next = data & 0x80;
+									data = (data << 1) | static_cast<uint8_t>(flag_c());
+									flag_c(flagc_next);
+									break;
+								}
+								case 3: { // RR r8
+									const bool flagc_next = data & 1;
+									data = (data >> 1) | (flag_c() << 7);
+									flag_c(flagc_next);
+									break;
+								}
+								case 4: // SLA r8
+									flag_c(data & 0x80);
+									data <<= 1;
+									break;
+								case 5: // SRA r8
+									flag_c(data & 1);
+									data = (std::bit_cast<int8_t>(data) >> 1);
+									break;
+								case 6: // SWAP r8
+									flag_c(0);
+									data = (data << 4) | (data >> 4); // swap nybbles
+									break;
+								case 7: // SRL r8
+									flag_c(data & 1);
+									data >>= 1;
+									break;
 							}
-							write_r8(bit_op_upper5bits, data);
+							write_r8(bit_op_lower3bits, data);
 							flag_z(data == 0), flag_n(0), flag_h(0);
 							return cycles;
 						} else if (bit_op_upper5bits < 020) { // BIT b3, r8
@@ -238,10 +305,8 @@ struct CPU {
 		}
 
 		throw GB_exc(
-			"Unrecognized opcode: {:#04x} == octal {:#3o}\n"
-			"CPU dump:\n"
-			"{}",
-			opcode, opcode, dump_state()
+			"Unrecognized opcode: {:#04x} == octal {:#3o}\n",
+			opcode, opcode
 		);
 	}
 
@@ -262,14 +327,14 @@ private:
 	Reg16 sp{0xCAFE}, pc{};
 
 	// not a huge fan of the 1 letter identifiers tbh, but they make sense for CPU regs.
-	constexpr uint8_t& a() { return af.hi; }
-	constexpr uint8_t& f() { return af.lo; }
-	constexpr uint8_t& b() { return bc.hi; }
-	constexpr uint8_t& c() { return bc.lo; }
-	constexpr uint8_t& d() { return de.hi; }
-	constexpr uint8_t& e() { return de.lo; }
-	constexpr uint8_t& h() { return hl.hi; }
-	constexpr uint8_t& l() { return hl.lo; }
+	[[nodiscard]] constexpr uint8_t& a() { return af.hi; }
+	[[nodiscard]] constexpr uint8_t& f() { return af.lo; }
+	[[nodiscard]] constexpr uint8_t& b() { return bc.hi; }
+	[[nodiscard]] constexpr uint8_t& c() { return bc.lo; }
+	[[nodiscard]] constexpr uint8_t& d() { return de.hi; }
+	[[nodiscard]] constexpr uint8_t& e() { return de.lo; }
+	[[nodiscard]] constexpr uint8_t& h() { return hl.hi; }
+	[[nodiscard]] constexpr uint8_t& l() { return hl.lo; }
 
 	constexpr static auto Z_BIT = 7;
 	constexpr static auto N_BIT = 6;
@@ -277,10 +342,10 @@ private:
 	constexpr static auto C_BIT = 4;
 
 	// flag getters/setters.
-	constexpr bool flag_z() const { return af.lo & (1 << Z_BIT); }
-	constexpr bool flag_n() const { return af.lo & (1 << N_BIT); }
-	constexpr bool flag_h() const { return af.lo & (1 << H_BIT); }
-	constexpr bool flag_c() const { return af.lo & (1 << C_BIT); }
+	[[nodiscard]] constexpr bool flag_z() const { return af.lo & (1 << Z_BIT); }
+	[[nodiscard]] constexpr bool flag_n() const { return af.lo & (1 << N_BIT); }
+	[[nodiscard]] constexpr bool flag_h() const { return af.lo & (1 << H_BIT); }
+	[[nodiscard]] constexpr bool flag_c() const { return af.lo & (1 << C_BIT); }
 	constexpr void flag_z(bool newVal) { af.lo = (af.lo & ~(1 << Z_BIT)) | (newVal << Z_BIT); }
 	constexpr void flag_n(bool newVal) { af.lo = (af.lo & ~(1 << N_BIT)) | (newVal << N_BIT); }
 	constexpr void flag_h(bool newVal) { af.lo = (af.lo & ~(1 << H_BIT)) | (newVal << H_BIT); }
