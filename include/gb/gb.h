@@ -3,6 +3,7 @@
 
 #include <gb/cpu/cpu.h>
 #include <gb/memory/mmu.h>
+#include <gb/ppu/ppu.h>
 #include <gb/utils/log.h>
 
 namespace gb
@@ -22,16 +23,21 @@ struct gameboy_emulator
 		uint64_t cycle_count = 0;
 		try {
 			while(true) {
-				cycle_count += cpu.fetch_execute();
+				const auto cpu_mclks = cpu.fetch_execute();
+				for(int i = 0; i<cpu_mclks; i++) {
+					for(int j = 0; j<4; j++) ppu.tclk_tick();
+				}
+				cycle_count += cpu_mclks;
 			}
 		} catch (...) {
-			GB_log_error("Exception raised, CPU state:\n{}", cpu.dump_state());
+			GB_log_error("Exception raised, CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
 			throw;
 		}
 	}
 
 	memory::MMU mmu;
 	cpu::CPU cpu{mmu};
+	ppu::PPU ppu{mmu};
 };
 
 }

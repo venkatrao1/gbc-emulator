@@ -39,15 +39,13 @@ constexpr uint16_t LCDS_BEGIN{0xFF40}, LCDS_END{0xFF4C};
 constexpr uint16_t LCD_CONTROL{0xFF40};
 constexpr uint16_t LCD_STATUS{0xFF41};
 constexpr uint16_t LCD_SCROLL_Y{0xFF42}, LCD_SCROLL_X{0xFF43};
+constexpr uint16_t LCD_CUR_Y{0xFF44}, LCD_CMP_Y{0xFF45};
+constexpr uint16_t OAM_DMA{0xFF46};
 constexpr uint16_t BG_PALETTE_DATA{0xFF47};
 constexpr uint16_t OBJ_PALETTE0_DATA{0xFF48}, OBJ_PALETTE1_DATA{0xFF49};
+constexpr uint16_t LCD_WINDOW_Y{0xFF4A}, LCD_WINDOW_X{0xFF4B};
 
 constexpr uint16_t BOOT_ROM_SELECT{0xFF50};
 constexpr uint16_t BOOT_ROM_BEGIN{0x0000}, BOOT_ROM_END{0x0100}; // at least true for DMG
-
-
-constexpr uint16_t LCD_WINDOW_Y{0xFF4A}, LCD_WINDOW_X{0xFF4B};
-
-
 
 }

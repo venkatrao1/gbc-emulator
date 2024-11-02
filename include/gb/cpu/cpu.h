@@ -12,9 +12,9 @@ namespace gb::cpu {
 
 // the game boy CPU.
 struct CPU {
-	constexpr CPU(memory::MMU& mmuIn) : mmu{mmuIn} {}
+	CPU(memory::MMU& mmuIn) : mmu{mmuIn} {}
 
-	// @ return number of M-cycles taken by this instruction.
+	// @return number of M-cycles taken by this instruction.
 	// TODO: this should probably be some sort of coroutine, whether that's a cpp20 coroutine
 	// or by saving sub-instruction state inside here.
 	uint64_t fetch_execute() {

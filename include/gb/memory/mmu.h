@@ -3,6 +3,7 @@
 #include <gb/memory/cartridge/cartridge.h>
 #include <gb/memory/memory_map.h>
 #include <gb/utils/log.h>
+#include <gb/utils/bitops.h>
 
 #include <optional>
 #include <vector>
@@ -43,6 +44,8 @@ public:
 		} else if (addr < ILLEGAL_MEM_END) {
 			throw GB_exc("Illegal memory read from {:#x}", addr);
 		} else if (addr < IO_MMAP_END) {
+			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
+			if(addr >= LCDS_BEGIN && addr < LCDS_END) return mem; // all locations readable, TODO populate in PPU
 			throw GB_exc("Unimplemented: memory read from {:#x}", addr);
 		} else {
 			return high_mem[addr - IO_MMAP_BEGIN];
@@ -67,14 +70,34 @@ public:
 		} else if (addr < ILLEGAL_MEM_END) {
 			throw GB_exc("Illegal memory write to {:#x}", addr);
 		} else if (addr < IO_MMAP_END) {
+			auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			if(addr >= AUDIOS_BEGIN && addr < AUDIOS_END) {
 				// TODO: audio unimplemented - for now allow writes
-				high_mem[addr - IO_MMAP_BEGIN] = data;
+				mem = data;
 				return;
-			} else if(addr >= LCDS_BEGIN && addr < LCDS_END) {
-				// TODO: ppu unimplemented - for now allow writes
-				high_mem[addr - IO_MMAP_BEGIN] = data;
-				return;
+			} else if(addr >= LCDS_BEGIN && addr < LCDS_END) switch(addr) {
+				// NOTE: only listing writable regs, anything else falls through
+				case LCD_CONTROL: 
+					mem = data;
+					return;
+				case LCD_STATUS: 
+					mem = mask_combine(0b0111'1000, mem, data);
+					return;
+				case LCD_SCROLL_Y:
+				case LCD_SCROLL_X:
+					mem = data;
+					return;
+				case LCD_CMP_Y:
+					mem = data;
+					return;
+				case OAM_DMA: break; // TODO
+				case BG_PALETTE_DATA:
+				case OBJ_PALETTE0_DATA:
+				case OBJ_PALETTE1_DATA:
+				case LCD_WINDOW_Y:
+				case LCD_WINDOW_X:
+					mem = data;
+					return;
 			}
 			throw GB_exc("Unimplemented: memory write to {:#x}", addr);
 		} else {
@@ -109,6 +132,8 @@ private:
 		std::copy(boot_rom_in.begin(), boot_rom_in.end(), ret.begin());
 		return ret;
 	}
+	
+	// TODO: disable access to vram etc during different PPU phases?
 };
 
 }
