@@ -31,6 +31,15 @@ struct gameboy_emulator
 			}
 		} catch (...) {
 			GB_log_error("Exception raised, CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
+			GB_log_debug("frame:");
+			char out[ppu::LCD_WIDTH]{};
+			for(const auto& row : ppu.cur_frame()) {
+				for(int col = 0; col < ppu::LCD_WIDTH; col++) {
+					constexpr static char palette[4]{'@', 'O', 'o', ' '};
+					out[col] = palette[row[col].raw];
+				}
+				GB_log_debug("{}", std::string_view{out, ppu::LCD_WIDTH});
+			}
 			throw;
 		}
 	}

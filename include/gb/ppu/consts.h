@@ -26,7 +26,7 @@ constexpr double FRAME_HZ = consts::TCLK_HZ / (LINE_TCLKS * (LCD_HEIGHT+VBLANK_L
 // 		const uint16_t translate = (gray * 10) + (gray & 1);
 // 		return {static_cast<uint16_t>(translate + (translate << 5) + (translate << 10))};
 // 	}
-	
+
 // 	constexpr auto r() const { return raw & 0b11111; }
 // 	constexpr auto g() const { return (raw >> 5) & 0b11111; }
 // 	constexpr auto b() const { return (raw >> 10) & 0b11111; }
@@ -44,5 +44,12 @@ struct Gray {
 
 using Line = std::array<Gray, LCD_WIDTH>;
 using Frame = std::array<Line, LCD_HEIGHT>;
+
+enum class Mode : uint8_t {
+	HBLANK = 0,
+	VBLANK = 1,
+	RD_OAM = 2,
+	DRAW = 3,
+};
 
 }

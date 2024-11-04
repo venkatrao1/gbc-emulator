@@ -27,7 +27,7 @@ public:
 	uint8_t read(const uint16_t addr) const {
 		using namespace addrs;
 		if(addr < CARTRIDGE_ROM_END) {
-			if(addr < BOOT_ROM_END && get<BOOT_ROM_SELECT>() == 0) {
+			if(addr < BOOT_ROM_END && boot_rom_enabled) {
 				return boot_rom[addr - BOOT_ROM_BEGIN];
 			}
 			return cartridge.read(addr);
@@ -77,10 +77,11 @@ public:
 				return;
 			} else if(addr >= LCDS_BEGIN && addr < LCDS_END) switch(addr) {
 				// NOTE: only listing writable regs, anything else falls through
-				case LCD_CONTROL: 
+				case LCD_CONTROL:
+					GB_log_debug("LCDC {}", static_cast<int>(data)); // TODO remove
 					mem = data;
 					return;
-				case LCD_STATUS: 
+				case LCD_STATUS:
 					mem = mask_combine(0b0111'1000, mem, data);
 					return;
 				case LCD_SCROLL_Y:
@@ -98,6 +99,10 @@ public:
 				case LCD_WINDOW_X:
 					mem = data;
 					return;
+			} else if (addr == BOOT_ROM_SELECT) {
+				mem = data;
+				if(data) boot_rom_enabled = false;
+				return;
 			}
 			throw GB_exc("Unimplemented: memory write to {:#x}", addr);
 		} else {
@@ -118,8 +123,14 @@ public:
 		return const_cast<MMU*>(this)->get<Addr>();
 	}
 
+	// for PPU usage
+	const uint8_t* vram_begin() const {
+		return vram.data();
+	}
+
 private:
 	Cartridge cartridge;
+	bool boot_rom_enabled{true};
 	const std::array<uint8_t, 256> boot_rom;
 	std::array<uint8_t, addrs::VRAM_END - addrs::VRAM_BEGIN> vram{};
 	std::array<uint8_t, addrs::WORK_RAM_END - addrs::WORK_RAM_BEGIN> wram{};
@@ -132,7 +143,7 @@ private:
 		std::copy(boot_rom_in.begin(), boot_rom_in.end(), ret.begin());
 		return ret;
 	}
-	
+
 	// TODO: disable access to vram etc during different PPU phases?
 };
 

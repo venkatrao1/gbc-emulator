@@ -170,12 +170,21 @@ struct CPU {
 			// all of these opcodes (except halt) load r8.
 			const auto r8 = op_upper5bits < 030 ? read_r8(op_low3bits) : ld_imm8();
 			switch(op_upper5bits & 7) {
+				case 0: // ADD A, r8 // ADD A, n8
+					flag_h(((a() & 0xF) + (r8 & 0xF) > 0x10)), flag_c((a() + r8) > 0x100);
+					a() += r8;
+					flag_z(a() == 0), flag_n(0);
+					return cycles;
+				case 2: // SUB A, r8 // SUB A, n8
+					flag_z(a() == r8), flag_n(1), flag_h((a() & 0xF) < (r8 & 0xF)), flag_c(r8 > a());
+					a() -= r8;
+					return cycles;
 				case 5: // XOR A, r8 // XOR A, n8
 					a() ^= r8;
 					flag_z(a() == 0), flag_n(0), flag_h(0), flag_c(0);
 					return cycles;
 				case 7: // CP A, r8 // CP A, n8
-					flag_z(a() == r8), flag_n(1), flag_h((a() & 0xF) < (r8 & 0xF)), flag_c(r8 > a());
+					flag_z(a() == r8), flag_n(1), flag_h((a() & 0xF) < (r8 & 0xF)), flag_c(r8 > a()); // same flags as sub
 					return cycles;
 			}
 		} else { // op >= 0o300, (op & 7) != 6 (note that PREFIX is in here, so this includes the 2-byte bitwise ops)
@@ -285,7 +294,7 @@ struct CPU {
 						}
 
 						throw GB_exc(
-							"Unrecognized bitwise opcode: {:#04x} == octal {:#3o}\n"
+							"Unrecognized bitwise opcode: {:#04x} == octal {:#03o}\n"
 							"CPU dump:\n"
 							"{}",
 							bit_op, bit_op, dump_state()
@@ -305,7 +314,7 @@ struct CPU {
 		}
 
 		throw GB_exc(
-			"Unrecognized opcode: {:#04x} == octal {:#3o}\n",
+			"Unrecognized opcode: {:#04x} == octal {:#03o}\n",
 			opcode, opcode
 		);
 	}
