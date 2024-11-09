@@ -3,4 +3,5 @@ target_sources(
 	PRIVATE
 	load_file.cpp
 	log.cpp
+	sdl_log.cpp
 )

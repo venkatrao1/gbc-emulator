@@ -2,29 +2,31 @@ cmake_minimum_required(VERSION 3.26) # the one I have installed
 
 project(Project)
 
-# SFML
-set(SFML_STATIC_LIBRARIES true)
-find_package(SFML 2.6.1 COMPONENTS window graphics system audio network)
-link_libraries(
-	# Link all SFML libraries, because SFML isn't very big anyway
-	sfml-graphics
-	sfml-window
-	sfml-audio
-	sfml-system
-)
-
-# Eigen (potentially)
-# if(NOT Eigen3_INCLUDE_DIR)
-# 	message(SEND_ERROR "No Eigen3_INCLUDE_DIR specified!")
-# endif()
-# include_directories("${Eigen3_INCLUDE_DIR}")
-
-# TODO: multiple target support probably will not be good here, when to use add vs target?
+include(FetchContent)
+set(FETCHCONTENT_QUIET FALSE)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+FetchContent_Declare(
+    SDL2
+	URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.9.zip
+	SYSTEM
+)
+
+FetchContent_Declare(
+	DearImGui
+	URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.5-docking.zip
+	SYSTEM
+)
+
+FetchContent_MakeAvailable(
+	SDL2
+	DearImGui
+)
+
 include_directories(.) # for headers and ipp
 include_directories(include)
+include_directories(${SDL2_INCLUDE_DIRS})
 
 # compiler flags
 if(MSVC)
@@ -47,5 +49,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 # add executables
 add_executable(app)
 target_compile_features(app PUBLIC cxx_std_20)
+
+# SDL2main must come before SDL2
+if(TARGET SDL2::SDL2main)
+    target_link_libraries(app PRIVATE SDL2::SDL2main)
+endif()
+target_link_libraries(app PRIVATE SDL2::SDL2)
 
 add_subdirectory(src)
