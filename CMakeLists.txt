@@ -7,6 +7,14 @@ set(FETCHCONTENT_QUIET FALSE)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+foreach(SDL_DISABLED_FLAGS
+	ATOMIC RENDER HIDAPI POWER FILE CPUINFO FILESYSTEM LOCALE # subsystems
+	OPENGLES RPI COCOA DIRECTX VIVANTE VULKAN METAL OFFSCREEN # other video backends (using OpenGL)
+	TEST
+)
+	option("SDL_${SDL_DISABLED_FLAGS}" OFF)
+endforeach()
+
 FetchContent_Declare(
     SDL2
 	URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.9.zip
@@ -26,7 +34,6 @@ FetchContent_MakeAvailable(
 
 include_directories(.) # for headers and ipp
 include_directories(include)
-include_directories(${SDL2_INCLUDE_DIRS})
 
 # compiler flags
 if(MSVC)
@@ -40,7 +47,7 @@ if(MSVC)
 		# add_compile_options(/fp:fast) # unsafe but faster hopefully
 	endif()
 else()
-	message(AUTHOR_WARNING "No compiler flags set, I only have compiled on MSVC!")
+	message(WARNING "No compiler flags set, I only have compiled on MSVC!")
 endif()
 
 # for IntelliSense to use

@@ -3,6 +3,7 @@
 #include <gb/utils/sdl_log.h>
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_video.h>
 
 #include <fstream>
 #include <iostream>
@@ -12,16 +13,24 @@
 int main(int argc, char* argv[]) {
 	gb::log::init_sdl_logging();
 
-	if(const auto sdl_err = SDL_Init(0); sdl_err < 0) {
+	const char* binary_name = argv[0] ? argv[0] : "<binary>";
+	if(argc != 3 && argc != 4) {
+		std::cerr << "Usage: " << binary_name << " <boot rom> <game rom> [save data]\n";
+		return 1;
+	}
+
+	if(const auto sdl_err = SDL_Init(SDL_INIT_VIDEO); sdl_err < 0) {
 		std::cerr << "Could not initialize SDL: " << SDL_GetError() << '\n';
 		return 2;
 	}
 
 	try {
-		const char* binary_name = argv[0] ? argv[0] : "<binary>";
-		if(argc != 3 && argc != 4) {
-			std::cerr << "Usage: " << binary_name << " <boot rom> <game rom> [save data]\n";
-			return 1;
+		{ // simple white window, based on https://lazyfoo.net/tutorials/SDL/01_hello_SDL/index2.php
+			SDL_Window* window = GB_SDL_checkptr(SDL_CreateWindow("SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_SHOWN ));
+			SDL_Surface* screenSurface = GB_SDL_checkptr(SDL_GetWindowSurface( window ));
+			SDL_FillRect( screenSurface, NULL, SDL_MapRGB( screenSurface->format, 0xFF, 0xFF, 0xFF ) );
+			SDL_UpdateWindowSurface( window );
+			SDL_Event e; bool quit = false; while( quit == false ){ while( SDL_PollEvent( &e ) ){ if( e.type == SDL_QUIT ) quit = true; } }
 		}
 		auto bootrom = gb::load_file(argv[1]);
 		auto cartridgerom = gb::load_file(argv[2]);
