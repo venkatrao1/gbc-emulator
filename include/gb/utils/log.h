@@ -4,6 +4,7 @@
 #include <format>
 #include <iterator>
 #include <iostream>
+#include <source_location>
 #include <string>
 
 namespace gb::log {
@@ -57,25 +58,36 @@ consteval std::string_view trim_src_path(const std::string_view file_orig) {
 	return file_orig.substr(std::mismatch(file_orig.begin(), file_orig.end(), rootDir.begin(), rootDir.end()).first - file_orig.begin());
 }
 
-template<class... Args>
-void log(const level lvl, const std::string_view file, const size_t line, std::format_string<Args...> fmt, Args&&... args) {
-	if (lvl > CURRENT_LOG_LEVEL) return;
+struct SourceLocation : std::source_location {
+	consteval SourceLocation(std::source_location loc) : source_location(loc), trimmed(trim_src_path(loc.file_name())) {}
+	const std::string_view trimmed;
+};
 
-	using namespace fg_colors;
-	// TODO add time
-	std::cout << GREEN << '[' << to_string(lvl) << "] " << CYAN << file << ':' << line << ": " << NONE;
-	std::format_to(std::ostream_iterator<char>(std::cout), std::move(fmt), std::forward<decltype(args)>(args)...);
-	std::cout << '\n';
-}
+// use CTAD to make a functor that automatically captures sloc
+template<class... Args>
+struct log {
+	log(const level lvl, std::format_string<Args...> fmt, Args&&... args, SourceLocation loc = std::source_location::current()) {
+		if (lvl > CURRENT_LOG_LEVEL) return;
+
+		using namespace fg_colors;
+		// TODO add time?
+		std::cout << GREEN << '[' << to_string(lvl) << "] " << CYAN << loc.trimmed << ':' << loc.line() << ": " << NONE;
+		std::format_to(std::ostream_iterator<char>(std::cout), std::move(fmt), std::forward<decltype(args)>(args)...);
+		std::cout << '\n';
+	}
+};
+
+template<class... Args>
+log(level, std::format_string<Args...>, Args&&...) -> log<Args...>;
 
 // prevent me from discarding the result of GB_exc
 [[nodiscard]] std::runtime_error make_error(std::string str);
 
 }
 
-#define GB_log_error(fmt, ...) ::gb::log::log(::gb::log::level::ERROR, ::gb::log::trim_src_path(__FILE__), __LINE__, fmt, __VA_ARGS__)
-#define GB_log_warn(fmt, ...) ::gb::log::log(::gb::log::level::WARN, ::gb::log::trim_src_path(__FILE__), __LINE__, fmt, __VA_ARGS__)
-#define GB_log_info(fmt, ...) ::gb::log::log(::gb::log::level::INFO, ::gb::log::trim_src_path(__FILE__), __LINE__, fmt, __VA_ARGS__)
-#define GB_log_debug(fmt, ...) ::gb::log::log(::gb::log::level::DEBUG, ::gb::log::trim_src_path(__FILE__), __LINE__, fmt, __VA_ARGS__)
+#define GB_log_error(fmt, ...) ::gb::log::log(::gb::log::level::ERROR, fmt, __VA_ARGS__)
+#define GB_log_warn(fmt, ...) ::gb::log::log(::gb::log::level::WARN, fmt, __VA_ARGS__)
+#define GB_log_info(fmt, ...) ::gb::log::log(::gb::log::level::INFO, fmt, __VA_ARGS__)
+#define GB_log_debug(fmt, ...) ::gb::log::log(::gb::log::level::DEBUG, fmt, __VA_ARGS__)
 
 #define GB_exc(fmt, ...) (::gb::log::make_error(std::format("{}:{}: " fmt, ::gb::log::trim_src_path(__FILE__), __LINE__, __VA_ARGS__)))

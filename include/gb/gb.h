@@ -17,7 +17,6 @@ struct gameboy_emulator
 	{
 	}
 
-	// the main loop. returns an exit code.
 	void run() {
 		GB_log_info("Starting gb");
 		uint64_t cycle_count = 0;
