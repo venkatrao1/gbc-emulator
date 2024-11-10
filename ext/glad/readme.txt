@@ -1,0 +1,1 @@
+generated from https://gen.glad.sh/#generator=c&api=gl%3D4.1&profile=gl%3Dcore%2Cgles1%3Dcommon for OpenGL 4.1 Core

@@ -6,3 +6,6 @@ In order of importance:
 TODO:
 - add backtrace library
 - add testing library (boost prob)
+- nicer imgui font?
+- add debugger - can use imgui_memory_editor as a helper
+- split main into GUI + headless (headless for test running, etc)

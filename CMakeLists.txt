@@ -32,6 +32,19 @@ FetchContent_MakeAvailable(
 	DearImGui
 )
 
+# Dear ImGui does not have a CMakeLists, set it up ourselves.
+file(GLOB DearImGui_sources ${dearimgui_SOURCE_DIR}/*.cpp)
+add_library(DearImGui STATIC EXCLUDE_FROM_ALL
+	${DearImGui_sources}
+	${dearimgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
+	${dearimgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+)
+target_include_directories(DearImGui PUBLIC ${dearimgui_SOURCE_DIR} INTERFACE ${dearimgui_SOURCE_DIR}/backends)
+target_link_libraries(DearImGui PRIVATE SDL2::SDL2)
+
+add_library(glad STATIC EXCLUDE_FROM_ALL ${CMAKE_CURRENT_SOURCE_DIR}/ext/glad/src/gl.c)
+target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ext/glad/include)
+
 include_directories(.) # for headers and ipp
 include_directories(include)
 
@@ -61,6 +74,6 @@ target_compile_features(app PUBLIC cxx_std_20)
 if(TARGET SDL2::SDL2main)
     target_link_libraries(app PRIVATE SDL2::SDL2main)
 endif()
-target_link_libraries(app PRIVATE SDL2::SDL2)
+target_link_libraries(app PRIVATE SDL2::SDL2 glad DearImGui)
 
 add_subdirectory(src)
