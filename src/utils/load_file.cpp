@@ -2,7 +2,6 @@
 #include <gb/utils/log.h>
 
 #include <fstream>
-#include <format>
 #include <iterator>
 
 namespace gb {

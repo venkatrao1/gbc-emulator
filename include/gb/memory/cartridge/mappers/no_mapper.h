@@ -7,8 +7,6 @@
 #include <array>
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
-#include <format>
 #include <vector>
 
 namespace gb::memory::mappers {

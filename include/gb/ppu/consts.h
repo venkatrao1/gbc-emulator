@@ -39,7 +39,7 @@ constexpr double FRAME_HZ = consts::TCLK_HZ / (LINE_TCLKS * (LCD_HEIGHT+VBLANK_L
 // };
 
 struct Gray {
-	uint8_t raw{}; // 0 - 3
+	uint8_t raw{}; // 0 - 3, 0 is lightest
 };
 
 using Line = std::array<Gray, LCD_WIDTH>;

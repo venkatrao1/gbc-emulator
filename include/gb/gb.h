@@ -17,11 +17,13 @@ struct gameboy_emulator
 	{
 	}
 
-	void run() {
-		log_info("Starting gb");
+	void run_frame() {
 		uint64_t cycle_count = 0;
 		try {
-			while(true) {
+			// run for 1 frame - wait for vblank to end, then wait for vblank to begin again.
+			bool vblank_finished = false;
+			while(!(vblank_finished && ppu.mode() == ppu::Mode::VBLANK)) {
+				if(ppu.mode() != ppu::Mode::VBLANK) vblank_finished = true;
 				const auto cpu_mclks = cpu.fetch_execute();
 				for(int i = 0; i<cpu_mclks; i++) {
 					for(int j = 0; j<4; j++) ppu.tclk_tick();
@@ -41,6 +43,12 @@ struct gameboy_emulator
 			}
 			throw;
 		}
+	}
+
+	// TODO: breakpoint for headless/tests
+	void run() {
+		log_info("Starting gb");
+		while(true) run_frame();
 	}
 
 	memory::MMU mmu;
