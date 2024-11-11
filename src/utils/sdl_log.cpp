@@ -3,7 +3,7 @@
 #include <array>
 #include <string_view>
 
-namespace gb::log {
+namespace gb::logging {
 
 namespace {
 

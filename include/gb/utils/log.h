@@ -7,7 +7,7 @@
 #include <source_location>
 #include <string>
 
-namespace gb::log {
+namespace gb::logging {
 
 enum class level : uint8_t {
 	ERROR = 0,
@@ -58,36 +58,39 @@ consteval std::string_view trim_src_path(const std::string_view file_orig) {
 	return file_orig.substr(std::mismatch(file_orig.begin(), file_orig.end(), rootDir.begin(), rootDir.end()).first - file_orig.begin());
 }
 
-struct SourceLocation : std::source_location {
-	consteval SourceLocation(std::source_location loc) : source_location(loc), trimmed(trim_src_path(loc.file_name())) {}
-	const std::string_view trimmed;
+struct SourceLocation {
+	consteval SourceLocation(std::source_location loc = std::source_location::current()) : loc{loc}, trimmed_file{trim_src_path(loc.file_name())} {}
+	std::source_location loc;
+	std::string_view trimmed_file;
 };
 
-// use CTAD to make a functor that automatically captures sloc
-template<class... Args>
-struct log {
-	log(const level lvl, std::format_string<Args...> fmt, Args&&... args, SourceLocation loc = std::source_location::current()) {
-		if (lvl > CURRENT_LOG_LEVEL) return;
 
-		using namespace fg_colors;
-		// TODO add time?
-		std::cout << GREEN << '[' << to_string(lvl) << "] " << CYAN << loc.trimmed << ':' << loc.line() << ": " << NONE;
-		std::format_to(std::ostream_iterator<char>(std::cout), std::move(fmt), std::forward<decltype(args)>(args)...);
-		std::cout << '\n';
-	}
+// we need the implicit conversion so we can automatically get std::source_location::current.
+// we group it together with level because putting it after the variadic args is not easily possible.
+struct LevelAndSourceLocation : SourceLocation {
+	consteval LevelAndSourceLocation(level lvl, SourceLocation loc = std::source_location::current()) : lvl{lvl}, SourceLocation{loc} {}
+	level lvl;
 };
 
 template<class... Args>
-log(level, std::format_string<Args...>, Args&&...) -> log<Args...>;
+void log(const LevelAndSourceLocation lvl_sloc, std::format_string<Args...> fmt, Args&&... args) {
+	if (lvl_sloc.lvl > CURRENT_LOG_LEVEL) return;
+
+	using namespace fg_colors;
+	// TODO add time?
+	std::cout << GREEN << '[' << to_string(lvl_sloc.lvl) << "] " << CYAN << lvl_sloc.trimmed_file << ':' << lvl_sloc.loc.line() << ": " << NONE;
+	std::format_to(std::ostream_iterator<char>(std::cout), std::move(fmt), std::forward<decltype(args)>(args)...);
+	std::cout << '\n';
+}
 
 // prevent me from discarding the result of GB_exc
 [[nodiscard]] std::runtime_error make_error(std::string str);
 
 }
 
-#define GB_log_error(fmt, ...) ::gb::log::log(::gb::log::level::ERROR, fmt, __VA_ARGS__)
-#define GB_log_warn(fmt, ...) ::gb::log::log(::gb::log::level::WARN, fmt, __VA_ARGS__)
-#define GB_log_info(fmt, ...) ::gb::log::log(::gb::log::level::INFO, fmt, __VA_ARGS__)
-#define GB_log_debug(fmt, ...) ::gb::log::log(::gb::log::level::DEBUG, fmt, __VA_ARGS__)
+#define GB_log_error(fmt, ...) log(::gb::logging::level::ERROR, fmt, __VA_ARGS__)
+#define GB_log_warn(fmt, ...) log(::gb::logging::level::WARN, fmt, __VA_ARGS__)
+#define GB_log_info(fmt, ...) log(::gb::logging::level::INFO, fmt, __VA_ARGS__)
+#define GB_log_debug(fmt, ...) log(::gb::logging::level::DEBUG, fmt, __VA_ARGS__)
 
-#define GB_exc(fmt, ...) (::gb::log::make_error(std::format("{}:{}: " fmt, ::gb::log::trim_src_path(__FILE__), __LINE__, __VA_ARGS__)))
+#define GB_exc(fmt, ...) (::gb::logging::make_error(std::format("{}:{}: " fmt, ::gb::logging::trim_src_path(__FILE__), __LINE__, __VA_ARGS__)))

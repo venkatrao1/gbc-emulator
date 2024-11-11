@@ -2,7 +2,7 @@
 
 #include <SDL2/SDL_log.h>
 
-namespace gb::log {
+namespace gb::logging {
 
 void init_sdl_logging(SDL_LogPriority lvl = SDL_LOG_PRIORITY_DEBUG);
 

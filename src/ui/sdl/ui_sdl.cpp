@@ -23,7 +23,7 @@ struct SDLGui : UI {
 			throw std::invalid_argument(std::format("Usage: {} gui <boot rom> <game rom> [save data]", binary_name));
 		}
 
-		gb::log::init_sdl_logging();
+		gb::logging::init_sdl_logging();
 
 		GB_SDL_checked(SDL_Init(SDL_INIT_VIDEO));
 	}
@@ -108,6 +108,6 @@ struct SDLGui : UI {
 	}
 };
 
-static auto registration [[maybe_unused]] = (UI::register_ui_type(SDLGui::name, [](int argc, const char* const argv[]){ return std::make_unique<SDLGui>(argc, argv); }), 0); 
+static auto registration [[maybe_unused]] = (UI::register_ui_type(SDLGui::name, [](int argc, const char* const argv[]){ return std::make_unique<SDLGui>(argc, argv); }), 0);
 
 }

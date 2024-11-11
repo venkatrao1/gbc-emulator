@@ -1,6 +1,6 @@
 #include <gb/utils/log.h>
 
-namespace gb::log {
+namespace gb::logging {
 
 std::ostream& operator<<(std::ostream& os, const ANSIEscape& esc) {
 	if(IS_TTY) {
