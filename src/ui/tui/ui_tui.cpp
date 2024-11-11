@@ -20,7 +20,7 @@ struct TUI : UI {
 		auto cartridgerom = gb::load_file(argv[3]);
 		std::optional<std::vector<uint8_t>> savedata;
 		if(argc >= 5) savedata = gb::load_file(argv[4]);
-		GB_log_info("Loaded files");
+		log_info("Loaded files");
 		emulator.emplace(std::move(bootrom), std::move(cartridgerom), std::move(savedata));
 	}
 
@@ -31,6 +31,6 @@ struct TUI : UI {
 	std::optional<gb::gameboy_emulator> emulator;
 };
 
-static auto registration [[maybe_unused]] = (UI::register_ui_type(TUI::name, [](int argc, const char* const argv[]){ return std::make_unique<TUI>(argc, argv); }), 0); 
+static auto registration [[maybe_unused]] = (UI::register_ui_type(TUI::name, [](int argc, const char* const argv[]){ return std::make_unique<TUI>(argc, argv); }), 0);
 
 }

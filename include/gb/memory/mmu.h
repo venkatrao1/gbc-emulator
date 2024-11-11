@@ -42,11 +42,11 @@ public:
 		} else if (addr < OAM_END) {
 			return oam[addr - OAM_BEGIN];
 		} else if (addr < ILLEGAL_MEM_END) {
-			throw GB_exc("Illegal memory read from {:#x}", addr);
+			throw_exc("Illegal memory read from {:#x}", addr);
 		} else if (addr < IO_MMAP_END) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			if(addr >= LCDS_BEGIN && addr < LCDS_END) return mem; // all locations readable, TODO populate in PPU
-			throw GB_exc("Unimplemented: memory read from {:#x}", addr);
+			throw_exc("Unimplemented: memory read from {:#x}", addr);
 		} else {
 			return high_mem[addr - IO_MMAP_BEGIN];
 		}
@@ -56,7 +56,7 @@ public:
 	void write(const uint16_t addr, const uint8_t data) {
 		using namespace addrs;
 		if(addr < CARTRIDGE_ROM_END) {
-			throw GB_exc("Illegal memory write to {:#x}", addr);
+			throw_exc("Illegal memory write to {:#x}", addr);
 		} else if (addr < VRAM_END) {
 			vram[addr - VRAM_BEGIN] = data;
 		} else if (addr < CARTRIDGE_RAM_END) {
@@ -68,7 +68,7 @@ public:
 		} else if (addr < OAM_END) {
 			oam[addr - OAM_BEGIN] = data;
 		} else if (addr < ILLEGAL_MEM_END) {
-			throw GB_exc("Illegal memory write to {:#x}", addr);
+			throw_exc("Illegal memory write to {:#x}", addr);
 		} else if (addr < IO_MMAP_END) {
 			auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			if(addr >= AUDIOS_BEGIN && addr < AUDIOS_END) {
@@ -78,7 +78,7 @@ public:
 			} else if(addr >= LCDS_BEGIN && addr < LCDS_END) switch(addr) {
 				// NOTE: only listing writable regs, anything else falls through
 				case LCD_CONTROL:
-					GB_log_debug("LCDC {}", static_cast<int>(data)); // TODO remove
+					log_debug("LCDC {}", static_cast<int>(data)); // TODO remove
 					mem = data;
 					return;
 				case LCD_STATUS:
@@ -104,7 +104,7 @@ public:
 				if(data) boot_rom_enabled = false;
 				return;
 			}
-			throw GB_exc("Unimplemented: memory write to {:#x}", addr);
+			throw_exc("Unimplemented: memory write to {:#x}", addr);
 		} else {
 			high_mem[addr - IO_MMAP_BEGIN] = data;
 		}
@@ -138,7 +138,7 @@ private:
 	std::array<uint8_t, addrs::IE - addrs::IO_MMAP_BEGIN + 1> high_mem{}; // io regs + hram + ie
 
 	static std::array<uint8_t, 256> get_boot_rom(const std::span<const uint8_t> boot_rom_in) {
-		if(boot_rom_in.size() != 256) throw GB_exc("Boot rom has unexpected size {}", boot_rom_in.size());
+		if(boot_rom_in.size() != 256) throw_exc("Boot rom has unexpected size {}", boot_rom_in.size());
 		std::array<uint8_t, 256> ret;
 		std::copy(boot_rom_in.begin(), boot_rom_in.end(), ret.begin());
 		return ret;

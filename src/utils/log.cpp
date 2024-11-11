@@ -14,3 +14,11 @@ std::runtime_error make_error(std::string str) {
 }
 
 }
+
+namespace gb {
+
+void throw_exc(logging::FmtAndSourceLocation<> fmt_sloc) {
+	throw_exc<>(fmt_sloc);
+}
+
+}

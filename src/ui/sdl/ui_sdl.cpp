@@ -25,7 +25,7 @@ struct SDLGui : UI {
 
 		gb::logging::init_sdl_logging();
 
-		GB_SDL_checked(SDL_Init(SDL_INIT_VIDEO));
+		sdl_checked(SDL_Init(SDL_INIT_VIDEO));
 	}
 
 	void main_loop() override {
@@ -34,10 +34,10 @@ struct SDLGui : UI {
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-			SDL_Window* window = GB_SDL_checkptr(SDL_CreateWindow("GB", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN));
-			SDL_GLContext context = GB_SDL_checkptr(SDL_GL_CreateContext(window));
+			SDL_Window* window = sdl_checkptr(SDL_CreateWindow("GB", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN));
+			SDL_GLContext context = sdl_checkptr(SDL_GL_CreateContext(window));
 			const int version = gladLoadGL(reinterpret_cast<GLADloadfunc>(SDL_GL_GetProcAddress));
-			GB_log_info("OpenGL version {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
+			log_info("OpenGL version {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
 			IMGUI_CHECKVERSION();
 			ImGui::CreateContext();
@@ -47,19 +47,25 @@ struct SDLGui : UI {
 			// io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 			ImGui::StyleColorsDark();
-			if(!ImGui_ImplSDL2_InitForOpenGL(window, context)) throw GB_exc("");
-			if(!ImGui_ImplOpenGL3_Init()) throw GB_exc("");
+			if(!ImGui_ImplSDL2_InitForOpenGL(window, context)) throw_exc();
+			if(!ImGui_ImplOpenGL3_Init()) throw_exc();
 
 			SDL_Event e;
 			bool quit = false;
 			bool show_imgui_demo = true;
 			bool show_custom_window = true;
 			while( quit == false ){
-				while( SDL_PollEvent( &e ) ){
+				while(SDL_PollEvent( &e )){
 					ImGui_ImplSDL2_ProcessEvent(&e);
 					// TODO: filter keyboard/mouse events based on whether imgui is active
-					if( e.type == SDL_QUIT ) quit = true;
-					if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == SDL_GetWindowID(window)) quit = true;
+					switch(e.type) {
+						case SDL_QUIT:
+							quit = true;
+							break;
+						case SDL_WINDOWEVENT:
+							if(e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == SDL_GetWindowID(window)) quit = true;
+							break;
+					}
 				}
 
 				ImGui_ImplOpenGL3_NewFrame();

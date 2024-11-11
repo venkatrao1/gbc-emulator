@@ -17,8 +17,8 @@ enum class level : uint8_t {
 };
 
 constexpr std::string_view to_string(const level lvl) {
-	using enum level;
 	switch(lvl) {
+		using enum level;
 		case ERROR: return "ERROR";
 		case WARN: return "WARN";
 		case INFO: return "INFO";
@@ -64,33 +64,55 @@ struct SourceLocation {
 	std::string_view trimmed_file;
 };
 
-
 // we need the implicit conversion so we can automatically get std::source_location::current.
-// we group it together with level because putting it after the variadic args is not easily possible.
-struct LevelAndSourceLocation : SourceLocation {
-	consteval LevelAndSourceLocation(level lvl, SourceLocation loc = std::source_location::current()) : lvl{lvl}, SourceLocation{loc} {}
-	level lvl;
+// we group it together with the format string because putting it after the variadic args is not easily possible.
+template<class... Args>
+struct FmtAndSourceLocation : SourceLocation {
+	consteval FmtAndSourceLocation(const auto& str, std::source_location loc = std::source_location::current()) : fmt{str}, SourceLocation{loc} {}
+	constexpr FmtAndSourceLocation(std::format_string<Args...> fmt, SourceLocation loc) : fmt{fmt}, SourceLocation{loc} {}
+	std::format_string<Args...> fmt;
 };
 
 template<class... Args>
-void log(const LevelAndSourceLocation lvl_sloc, std::format_string<Args...> fmt, Args&&... args) {
-	if (lvl_sloc.lvl > CURRENT_LOG_LEVEL) return;
+void log(const level lvl, FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_sloc, Args&&... args) {
+	if (lvl > CURRENT_LOG_LEVEL) return;
 
 	using namespace fg_colors;
 	// TODO add time?
-	std::cout << GREEN << '[' << to_string(lvl_sloc.lvl) << "] " << CYAN << lvl_sloc.trimmed_file << ':' << lvl_sloc.loc.line() << ": " << NONE;
-	std::format_to(std::ostream_iterator<char>(std::cout), std::move(fmt), std::forward<decltype(args)>(args)...);
+	std::cout << GREEN << '[' << to_string(lvl) << "] " << CYAN << fmt_sloc.trimmed_file << ':' << fmt_sloc.loc.line() << ": " << NONE;
+	std::format_to(std::ostream_iterator<char>(std::cout), fmt_sloc.fmt, std::forward<decltype(args)>(args)...);
 	std::cout << '\n';
 }
 
-// prevent me from discarding the result of GB_exc
-[[nodiscard]] std::runtime_error make_error(std::string str);
-
 }
 
-#define GB_log_error(fmt, ...) log(::gb::logging::level::ERROR, fmt, __VA_ARGS__)
-#define GB_log_warn(fmt, ...) log(::gb::logging::level::WARN, fmt, __VA_ARGS__)
-#define GB_log_info(fmt, ...) log(::gb::logging::level::INFO, fmt, __VA_ARGS__)
-#define GB_log_debug(fmt, ...) log(::gb::logging::level::DEBUG, fmt, __VA_ARGS__)
+namespace gb {
 
-#define GB_exc(fmt, ...) (::gb::logging::make_error(std::format("{}:{}: " fmt, ::gb::logging::trim_src_path(__FILE__), __LINE__, __VA_ARGS__)))
+template<class... Args>
+void log_info(logging::FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_sloc, Args&&... args) {
+	logging::log(logging::level::INFO, fmt_sloc, std::forward<Args>(args)...);
+}
+
+template<class... Args>
+void log_error(logging::FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_sloc, Args&&... args) {
+	logging::log(logging::level::ERROR, fmt_sloc, std::forward<Args>(args)...);
+}
+
+template<class... Args>
+void log_warn(logging::FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_sloc, Args&&... args) {
+	logging::log(logging::level::WARN, fmt_sloc, std::forward<Args>(args)...);
+}
+
+template<class... Args>
+void log_debug(logging::FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_sloc, Args&&... args) {
+	logging::log(logging::level::DEBUG, fmt_sloc, std::forward<Args>(args)...);
+}
+
+template<class... Args>
+[[noreturn]] void throw_exc(logging::FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_sloc, Args&&... args) {
+	throw std::runtime_error{std::format("{}:{}: ", fmt_sloc.trimmed_file, fmt_sloc.loc.line()) + std::format(fmt_sloc.fmt, std::forward<Args>(args)...)};
+}
+
+[[noreturn]] void throw_exc(logging::FmtAndSourceLocation<> fmt_sloc = "");
+
+}

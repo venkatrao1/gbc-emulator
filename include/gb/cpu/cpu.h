@@ -47,12 +47,12 @@ struct CPU {
 		// I'm calling this r8 to match gbdev.io, despite the fact that [hl] is not a register
 		const std::array<uint8_t*, 8> BCDEHL_NULLPTR_A{&b(), &c(), &d(), &e(), &h(), &l(), nullptr, &a()};
 		const auto read_r8 = [this, &read, &BCDEHL_NULLPTR_A](uint8_t b3) -> uint8_t {
-			if(b3 > 7) throw GB_exc("");
+			if(b3 > 7) throw_exc();
 			if(b3 == 6) return read(hl);
 			else return *(BCDEHL_NULLPTR_A[b3]);
 		};
 		const auto write_r8 = [this, &write, &BCDEHL_NULLPTR_A](uint8_t b3, uint8_t data) -> void {
-			if(b3 > 7) throw GB_exc("");
+			if(b3 > 7) throw_exc();
 			if(b3 == 6) write(hl, data);
 			else *(BCDEHL_NULLPTR_A[b3]) = data;
 		};
@@ -64,7 +64,7 @@ struct CPU {
 				case 1: return flag_z(); // Z
 				case 2: return !flag_c(); // NC
 				case 3: return flag_c(); // C
-				default: throw GB_exc("");
+				default: throw_exc();
 			}
 		};
 
@@ -162,7 +162,7 @@ struct CPU {
 			}
 		} else if (op_upper5bits < 020) { // 0o100 <= op < 0o200 - LD r8, r8
 			if(constexpr static uint8_t OPCODE_HALT{0166}; opcode == OPCODE_HALT) {
-				throw GB_exc("Halt unimplemented!\n{}", dump_state());
+				throw_exc("Halt unimplemented!\n{}", dump_state());
 			}
 			write_r8(op_upper5bits & 7, read_r8(op_low3bits));
 			return cycles;
@@ -204,18 +204,18 @@ struct CPU {
 					case 034: // LD [0xFF00+imm8], A
 						write(0xFF00 + ld_imm8(), a());
 						return cycles;
-					case 035: throw GB_exc("");
+					case 035: throw_exc();
 					case 036: // LD A, [0xFF00+imm8]
 						a() = read(0xFF00 + ld_imm8());
 						return cycles;
-					case 037: throw GB_exc("");
+					case 037: throw_exc();
 				};
 				case 1: if(op_upper5bits & 1) switch(op_upper5bits) {
 					case 031:
 						pc = pop16();
 						cycles++;
 						return cycles;
-					default: throw GB_exc("");
+					default: throw_exc();
 				} else { // POP r16
 					*(BC_DE_HL_AF[(op_upper5bits >> 1) & 3]) = pop16();
 					return cycles;
@@ -293,7 +293,7 @@ struct CPU {
 						} else { // RES/SET b3, R8
 						}
 
-						throw GB_exc(
+						throw_exc(
 							"Unrecognized bitwise opcode: {:#04x} == octal {:#03o}\n"
 							"CPU dump:\n"
 							"{}",
@@ -313,7 +313,7 @@ struct CPU {
 			}
 		}
 
-		throw GB_exc(
+		throw_exc(
 			"Unrecognized opcode: {:#04x} == octal {:#03o}\n",
 			opcode, opcode
 		);

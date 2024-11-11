@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 	try {
 		auto ui = gb::ui::UI::create(argv[1], argc, argv);
 		ui->main_loop();
-		GB_log_info("Exiting with code 0");
+		gb::log_info("Exiting with code 0");
 		return 0;
 	} catch (const std::exception& e) {
 		std::cerr << "Uncaught exception: " << e.what() << '\n';

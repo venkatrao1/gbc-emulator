@@ -18,7 +18,7 @@ struct gameboy_emulator
 	}
 
 	void run() {
-		GB_log_info("Starting gb");
+		log_info("Starting gb");
 		uint64_t cycle_count = 0;
 		try {
 			while(true) {
@@ -29,15 +29,15 @@ struct gameboy_emulator
 				cycle_count += cpu_mclks;
 			}
 		} catch (...) {
-			GB_log_error("Exception raised, CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
-			GB_log_debug("frame:");
+			log_error("Exception raised, CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
+			log_debug("frame:");
 			char out[ppu::LCD_WIDTH]{};
 			for(const auto& row : ppu.cur_frame()) {
 				for(int col = 0; col < ppu::LCD_WIDTH; col++) {
 					constexpr static char palette[4]{'@', 'O', 'o', ' '};
 					out[col] = palette[row[col].raw];
 				}
-				GB_log_debug("{}", std::string_view{out, ppu::LCD_WIDTH});
+				log_debug("{}", std::string_view{out, ppu::LCD_WIDTH});
 			}
 			throw;
 		}
