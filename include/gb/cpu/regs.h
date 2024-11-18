@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <format>
 
 namespace gb::cpu {
 
@@ -44,3 +45,6 @@ struct Reg16 {
 };
 
 }
+
+template<>
+struct std::formatter<gb::cpu::Reg16> : std::formatter<uint16_t> {};

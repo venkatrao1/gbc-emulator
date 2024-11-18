@@ -68,7 +68,31 @@ struct CPU {
 			}
 		};
 
+		const auto push16 = [this, &write, &cycles](const Reg16& reg) -> void {
+			cycles++;
+			write(--sp, reg.hi);
+			write(--sp, reg.lo);
+		};
+
 		const uint8_t opcode = ld_imm8();
+
+		if(IME) {
+			if(const auto requested_interrupt = get_interrupt(); requested_interrupt.has_value()) {
+				IME = false;
+				IME_enable_pending = false;
+				const uint16_t next_addr = 0x40 + (8 * static_cast<uint8_t>(*requested_interrupt));
+				--pc; ++cycles; // interrupt servicing happens after fetch opcode, backtrack one instruction
+				log_debug("Servicing interrupt {}, PC={:#06x}, jumping to {:#06x}", *requested_interrupt, pc, next_addr);
+				push16(pc);
+				// TODO: a second, higher prio interrupt can handle between the start of this routine and here, and could override this one.
+				pc = next_addr;
+				return cycles;
+			}
+		}
+		if(IME_enable_pending) {
+			IME = true;
+			IME_enable_pending = false;
+		}
 
 		// The gb opcodes are easy to decode as octal.
 		// https://gbdev.io/gb-opcodes/optables/octal
@@ -80,8 +104,9 @@ struct CPU {
 		// TODO: see if marking some cases unreachable causes better codegen (once all instructions implemented.)
 		if(op_upper5bits < 010) switch(op_low3bits) { // < 0o100
 			case 0:
-				if(op_upper5bits < 3) {
-					break;
+				if(op_upper5bits < 3) switch(op_upper5bits) {
+					case 0: // NOP
+						return cycles;
 				} else { // JR <flag>, e8 // JR e8
 					const bool should_jump = op_upper5bits == 3 ? true : get_flag(op_upper5bits & 3);
 					const auto offset = static_cast<int8_t>(ld_imm8());
@@ -179,8 +204,16 @@ struct CPU {
 					flag_z(a() == r8), flag_n(1), flag_h((a() & 0xF) < (r8 & 0xF)), flag_c(r8 > a());
 					a() -= r8;
 					return cycles;
+				case 4: // AND A, r8 // AND A, n8
+					a() &= r8;
+					flag_z(a() == 0), flag_n(0), flag_h(1), flag_c(0);
+					return cycles;
 				case 5: // XOR A, r8 // XOR A, n8
 					a() ^= r8;
+					flag_z(a() == 0), flag_n(0), flag_h(0), flag_c(0);
+					return cycles;
+				case 6: // OR A, r8 // OR A, n8
+					a() |= r8;
 					flag_z(a() == 0), flag_n(0), flag_h(0), flag_c(0);
 					return cycles;
 				case 7: // CP A, r8 // CP A, n8
@@ -188,11 +221,6 @@ struct CPU {
 					return cycles;
 			}
 		} else { // op >= 0o300, (op & 7) != 6 (note that PREFIX is in here, so this includes the 2-byte bitwise ops)
-			const auto push16 = [this, &write, &cycles](const Reg16& reg) -> void {
-				cycles++;
-				write(--sp, reg.hi);
-				write(--sp, reg.lo);
-			};
 			const auto pop16 = [this, &read]() -> uint16_t {
 				const auto lo = read(sp++);
 				return lo | (static_cast<uint16_t>(read(sp++)) << 8);
@@ -237,6 +265,10 @@ struct CPU {
 						return cycles;
 				}
 				case 3: switch(op_upper5bits) {
+					case 030: // JP a16
+						pc = ld_imm16();
+						cycles++;
+						return cycles;
 					case 031: { // PREFIX - bitwise ops!
 						const uint8_t bit_op = ld_imm8();
 						const uint8_t bit_op_lower3bits = bit_op & 7;
@@ -300,7 +332,15 @@ struct CPU {
 							bit_op, bit_op, dump_state()
 						);
 					}
+					case 036: // DI
+						IME_enable_pending = false;
+						IME = false;
+						return cycles;
+					case 037: // EI
+						IME_enable_pending = true;
+						return cycles;
 				}
+					break;
 				case 5: if(op_upper5bits == 031) { // CALL a16
 					const auto addr = ld_imm16();
 					push16(pc);
@@ -324,8 +364,8 @@ struct CPU {
 			"AF[{:#06x}] BC[{:#06x}] DE[{:#06x}] HL[{:#06x}]\n"
 			"SP[{:#06x}] PC[{:#06x}]\n"
 			"Z[{:b}] N[{:b}] H[{:b}] C[{:b}]",
-			uint16_t{af}, uint16_t{bc}, uint16_t{de}, uint16_t{hl},
-			uint16_t{sp}, uint16_t{pc},
+			af, bc, de, hl,
+			sp, pc,
 			flag_z(), flag_n(), flag_h(), flag_c()
 		);
 	}
@@ -334,6 +374,9 @@ private:
 	// regs - TODO seed if needed.
 	Reg16 af{0xCAFE}, bc{0xCAFE}, de{0xCAFE}, hl{0xCAFE};
 	Reg16 sp{0xCAFE}, pc{};
+
+	bool IME{false}; // interrupt master enable
+	bool IME_enable_pending{false};
 
 	// not a huge fan of the 1 letter identifiers tbh, but they make sense for CPU regs.
 	[[nodiscard]] constexpr uint8_t& a() { return af.hi; }
@@ -359,6 +402,15 @@ private:
 	constexpr void flag_n(bool newVal) { af.lo = (af.lo & ~(1 << N_BIT)) | (newVal << N_BIT); }
 	constexpr void flag_h(bool newVal) { af.lo = (af.lo & ~(1 << H_BIT)) | (newVal << H_BIT); }
 	constexpr void flag_c(bool newVal) { af.lo = (af.lo & ~(1 << C_BIT)) | (newVal << C_BIT); }
+
+	[[nodiscard]] std::optional<memory::interrupt_bits> get_interrupt() {
+		const uint8_t requested = mmu.get<memory::addrs::INTERRUPT_ENABLE>() & mmu.get<memory::addrs::INTERRUPT_FLAG>();
+		if(const auto lowest_set_bit = std::countr_zero(requested); lowest_set_bit < 5) {
+			mmu.get<memory::addrs::INTERRUPT_FLAG>() ^= (1 << lowest_set_bit);
+			return static_cast<memory::interrupt_bits>(lowest_set_bit);
+		}
+		else return std::nullopt;
+	}
 
 	memory::MMU& mmu; // TODO: consider using CRTP instead
 };

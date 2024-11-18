@@ -1,6 +1,9 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <format>
+#include <string_view>
 
 namespace gb::memory::addrs {
 
@@ -16,7 +19,7 @@ constexpr uint16_t OAM_BEGIN{0xFE00}, OAM_END{0xFEA0};
 constexpr uint16_t ILLEGAL_MEM_BEGIN{0xFEA0}, ILLEGAL_MEM_END{0xFF00};
 constexpr uint16_t IO_MMAP_BEGIN{0xFF00}, IO_MMAP_END{0xFF80};
 constexpr uint16_t HRAM_BEGIN{0xFF80}, HRAM_END{0xFFFF};
-constexpr uint16_t IE{0xFFFF};
+constexpr uint16_t INTERRUPT_ENABLE{0xFFFF};
 
 // within cartridge
 constexpr uint16_t TITLE_BEGIN{0x0134}, TITLE_END{0x0143};
@@ -31,6 +34,7 @@ constexpr uint16_t JOYPAD{0xFF00};
 constexpr uint16_t SERIAL_DATA{0xFF01}, SERIAL_CONTROL{0xFF02};
 constexpr uint16_t DIVIDER{0xFF04};
 constexpr uint16_t TIMER_COUNTER{0xFF05}, TIMER_MODULO{0xFF06}, TIMER_CONTROL{0xFF07};
+constexpr uint16_t INTERRUPT_FLAG{0xFF0F};
 // TODO: audio
 constexpr uint16_t AUDIOS_BEGIN{0xFF10}, AUDIOS_END{0xFF27};
 constexpr uint16_t WAVETABLE_RAM_BEGIN{0xFF30}, WAVETABLE_RAM_END{0xFF40};
@@ -49,3 +53,38 @@ constexpr uint16_t BOOT_ROM_SELECT{0xFF50};
 constexpr uint16_t BOOT_ROM_BEGIN{0x0000}, BOOT_ROM_END{0x0100}; // at least true for DMG
 
 }
+
+namespace gb::memory {
+
+enum class interrupt_bits : uint8_t {
+    VBLANK = 0,
+    LCD = 1,
+    TIMER = 2,
+    SERIAL = 3,
+    JOYPAD = 4
+};
+
+enum class serial_control_bits : uint8_t {
+    CLOCK_SELECT = 0,
+    CLOCK_SPEED = 1,
+    ENABLE = 7
+};
+
+}
+
+template<>
+struct std::formatter<gb::memory::interrupt_bits> : std::formatter<std::string_view> {
+	auto format(gb::memory::interrupt_bits i, auto& ctx) const {
+		using namespace std::string_view_literals;
+		constexpr static std::array names{
+			"VBLANK"sv,
+			"LCD"sv,
+			"TIMER"sv,
+			"SERIAL"sv,
+			"JOYPAD"sv,
+		};
+		const auto raw = static_cast<uint8_t>(i);
+		const auto name = raw < names.size() ? names[raw] : "UNKNOWN"sv;
+		return std::formatter<std::string_view>::format(name, ctx);
+	}
+};

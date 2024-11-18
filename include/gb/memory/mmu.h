@@ -45,10 +45,16 @@ public:
 			throw_exc("Illegal memory read from {:#x}", addr);
 		} else if (addr < IO_MMAP_END) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
+			switch(addr) {
+				case DIVIDER:
+					return mem;
+			}
 			if(addr >= LCDS_BEGIN && addr < LCDS_END) return mem; // all locations readable, TODO populate in PPU
 			throw_exc("Unimplemented: memory read from {:#x}", addr);
-		} else {
+		} else if(addr < INTERRUPT_ENABLE) {
 			return high_mem[addr - IO_MMAP_BEGIN];
+		} else {
+			return get<INTERRUPT_ENABLE>() | 0b1110'0000;
 		}
 	}
 
@@ -56,7 +62,7 @@ public:
 	void write(const uint16_t addr, const uint8_t data) {
 		using namespace addrs;
 		if(addr < CARTRIDGE_ROM_END) {
-			throw_exc("Illegal memory write to {:#x}", addr);
+			cartridge.write(addr, data);
 		} else if (addr < VRAM_END) {
 			vram[addr - VRAM_BEGIN] = data;
 		} else if (addr < CARTRIDGE_RAM_END) {
@@ -68,17 +74,34 @@ public:
 		} else if (addr < OAM_END) {
 			oam[addr - OAM_BEGIN] = data;
 		} else if (addr < ILLEGAL_MEM_END) {
-			throw_exc("Illegal memory write to {:#x}", addr);
+			log_warn("Illegal memory write to {:#06x}", addr);
+			// TODO: doing nothing for now - if we have to implement reads revisit this
 		} else if (addr < IO_MMAP_END) {
+			if(addr >= 0xFF78) { // not mapped to any register
+				log_warn("Write to {:#06x}, ignoring", addr);
+				return;
+			}
 			auto& mem = high_mem[addr - IO_MMAP_BEGIN];
-			if(addr >= AUDIOS_BEGIN && addr < AUDIOS_END) {
+			if(addr < AUDIOS_BEGIN) switch(addr) {
+				case SERIAL_DATA:
+					log_warn("Writing serial data {:#04x} but it is unimplemented", data);
+					mem = data;
+					return;
+				case SERIAL_CONTROL:
+					if(data & (1 << static_cast<uint8_t>(serial_control_bits::ENABLE))) throw_exc("Serial unimplemented; control data {:#04x}", data);
+					mem = data;
+					return;
+				case INTERRUPT_FLAG:
+					mem = data;
+					return;
+			} else if(addr < AUDIOS_END) {
 				// TODO: audio unimplemented - for now allow writes
 				mem = data;
 				return;
 			} else if(addr >= LCDS_BEGIN && addr < LCDS_END) switch(addr) {
 				// NOTE: only listing writable regs, anything else falls through
 				case LCD_CONTROL:
-					log_debug("LCDC {}", static_cast<int>(data)); // TODO remove
+					log_debug("LCDC {:08b}", data); // TODO remove
 					mem = data;
 					return;
 				case LCD_STATUS:
@@ -128,6 +151,15 @@ public:
 		return vram.data();
 	}
 
+	// request an interrupt
+	void request_interrupt(interrupt_bits i) { get<addrs::INTERRUPT_FLAG>() |= (1 << static_cast<uint8_t>(i)); }
+
+	void handle_timers(uint64_t old_mclks, uint64_t new_mclks) {
+		using namespace addrs;
+		// DIV ticks up every 64 mclks.
+		if((new_mclks ^ old_mclks) & (~63)) get<DIVIDER>()++;
+	}
+
 private:
 	Cartridge cartridge;
 	bool boot_rom_enabled{true};
@@ -135,7 +167,7 @@ private:
 	std::array<uint8_t, addrs::VRAM_END - addrs::VRAM_BEGIN> vram{};
 	std::array<uint8_t, addrs::WORK_RAM_END - addrs::WORK_RAM_BEGIN> wram{};
 	std::array<uint8_t, addrs::OAM_END - addrs::OAM_BEGIN> oam{};
-	std::array<uint8_t, addrs::IE - addrs::IO_MMAP_BEGIN + 1> high_mem{}; // io regs + hram + ie
+	std::array<uint8_t, addrs::INTERRUPT_ENABLE - addrs::IO_MMAP_BEGIN + 1> high_mem{}; // io regs + hram + ie
 
 	static std::array<uint8_t, 256> get_boot_rom(const std::span<const uint8_t> boot_rom_in) {
 		if(boot_rom_in.size() != 256) throw_exc("Boot rom has unexpected size {}", boot_rom_in.size());

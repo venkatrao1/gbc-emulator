@@ -35,9 +35,7 @@ struct NoMapper {
 	}
 
 	void write(uint16_t addr, [[maybe_unused]] uint8_t data) {
-		// TODO: ignore writes to ROM once done with initial impl
-		throw_exc("Wrote to ROM address {:#x}", addr);
-		// log_warn("Wrote to ROM address {:#x}, ignoring", addr);
+		log_warn("Wrote to ROM address {:#x}, ignoring", addr);
 	}
 
 	std::array<std::uint8_t, ROM_SIZE> rom;

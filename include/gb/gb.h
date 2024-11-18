@@ -18,17 +18,18 @@ struct gameboy_emulator
 	}
 
 	void run_frame() {
-		uint64_t cycle_count = 0;
 		try {
 			// run for 1 frame - wait for vblank to end, then wait for vblank to begin again.
 			bool vblank_finished = false;
 			while(!(vblank_finished && ppu.mode() == ppu::Mode::VBLANK)) {
 				if(ppu.mode() != ppu::Mode::VBLANK) vblank_finished = true;
 				const auto cpu_mclks = cpu.fetch_execute();
-				for(int i = 0; i<cpu_mclks; i++) {
-					for(int j = 0; j<4; j++) ppu.tclk_tick();
-				}
-				cycle_count += cpu_mclks;
+				const auto old_mclks = total_mclks;
+				total_mclks += cpu_mclks;
+				mmu.handle_timers(old_mclks, total_mclks);
+				const auto cpu_tclks = cpu_mclks * 4; // TODO not true for CGB
+				total_tclks += cpu_tclks;
+				for(int i = 0; i<cpu_tclks; i++) ppu.tclk_tick();
 			}
 		} catch (...) {
 			log_error("Exception raised, CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
@@ -54,6 +55,9 @@ struct gameboy_emulator
 	memory::MMU mmu;
 	cpu::CPU cpu{mmu};
 	ppu::PPU ppu{mmu};
+
+	uint64_t total_mclks = 0;
+	uint64_t total_tclks = 0;
 };
 
 }
