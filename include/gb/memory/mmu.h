@@ -46,6 +46,8 @@ public:
 		} else if (addr < IO_MMAP_END) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			switch(addr) {
+				case JOYPAD:
+					return mask_combine(0b0011'0000, uint8_t{0xFF}, mem); // TODO: this simulates no buttons being pressed.
 				case DIVIDER:
 					return mem;
 			}
@@ -83,6 +85,9 @@ public:
 			}
 			auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			if(addr < AUDIOS_BEGIN) switch(addr) {
+				case JOYPAD:
+					mem = mask_combine(0b0011'0000, mem, data);
+					return;
 				case SERIAL_DATA:
 					log_warn("Writing serial data {:#04x} but it is unimplemented", data);
 					mem = data;
@@ -91,6 +96,7 @@ public:
 					if(data & (1 << static_cast<uint8_t>(serial_control_bits::ENABLE))) throw_exc("Serial unimplemented; control data {:#04x}", data);
 					mem = data;
 					return;
+				case TIMER_MODULO:
 				case INTERRUPT_FLAG:
 					mem = data;
 					return;
@@ -114,7 +120,9 @@ public:
 				case LCD_CMP_Y:
 					mem = data;
 					return;
-				case OAM_DMA: break; // TODO
+				case OAM_DMA:
+					start_oam_dma(data);
+					return;
 				case BG_PALETTE_DATA:
 				case OBJ_PALETTE0_DATA:
 				case OBJ_PALETTE1_DATA:
@@ -174,6 +182,18 @@ private:
 		std::array<uint8_t, 256> ret;
 		std::copy(boot_rom_in.begin(), boot_rom_in.end(), ret.begin());
 		return ret;
+	}
+
+	void start_oam_dma(const uint8_t data) {
+		// TODO: oam is not instant.
+		get<addrs::OAM_DMA>() = data;
+		const uint16_t src_addr = data << 8;
+		log_debug("OAM DMA with source {:#06x}", src_addr);
+		auto cur_addr = src_addr;
+		for(uint8_t& oam_byte : oam) {
+			oam_byte = read(cur_addr);
+			cur_addr++;
+		}
 	}
 
 	// TODO: disable access to vram etc during different PPU phases?

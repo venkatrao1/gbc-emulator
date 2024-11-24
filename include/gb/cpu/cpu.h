@@ -6,6 +6,7 @@
 #include "regs.h"
 
 #include <array>
+#include <bitset>
 #include <format>
 
 namespace gb::cpu {
@@ -74,6 +75,11 @@ struct CPU {
 			write(--sp, reg.lo);
 		};
 
+		if(!visited[pc]) {
+			log_debug("New PC: {:#06x}", pc);
+			visited[pc] = true;
+		}
+
 		const uint8_t opcode = ld_imm8();
 
 		if(IME) {
@@ -118,7 +124,11 @@ struct CPU {
 				}
 			case 1:
 				if(op_upper5bits & 1) { // ADD HL, r16
-					break; // TODO
+					const auto& r16 = *(BC_DE_HL_SP[op_upper5bits >> 1]);
+					flag_n(0), flag_h(((hl & 0xFFF) + (r16 & 0xFFF)) > 0xFFF), flag_c((hl + r16) > 0xFFFF);
+					++cycles;
+					hl += r16;
+					return cycles;
 				} else { // LD r16, n16
 					*(BC_DE_HL_SP[op_upper5bits >> 1]) = ld_imm16();
 					return cycles;
@@ -184,6 +194,17 @@ struct CPU {
 						return cycles;
 					}
 				}
+			} else switch(op_upper5bits) {
+				case 4: // DAA
+					break;
+				case 5: // CPL
+					flag_n(1), flag_h(1);
+					a() = ~a();
+					return cycles;
+				case 6: // SCF
+					break;
+				case 7: // CCF
+					break;
 			}
 		} else if (op_upper5bits < 020) { // 0o100 <= op < 0o200 - LD r8, r8
 			if(constexpr static uint8_t OPCODE_HALT{0166}; opcode == OPCODE_HALT) {
@@ -196,10 +217,17 @@ struct CPU {
 			const auto r8 = op_upper5bits < 030 ? read_r8(op_low3bits) : ld_imm8();
 			switch(op_upper5bits & 7) {
 				case 0: // ADD A, r8 // ADD A, n8
-					flag_h(((a() & 0xF) + (r8 & 0xF) > 0x10)), flag_c((a() + r8) > 0x100);
+					flag_h(((a() & 0xF) + (r8 & 0xF) > 0xF)), flag_c((a() + r8) > 0xFF);
 					a() += r8;
 					flag_z(a() == 0), flag_n(0);
 					return cycles;
+				case 1: { // ADC A, r8 // ADC A, n8
+					const bool c_old = flag_c();
+					flag_h(((a() & 0xF) + (r8 & 0xF) + c_old) > 0xF), flag_c((a() + r8 + c_old) > 0xFF);
+					a() += r8 + c_old;
+					flag_z(a() == 0), flag_n(0);
+					return cycles;
+				}
 				case 2: // SUB A, r8 // SUB A, n8
 					flag_z(a() == r8), flag_n(1), flag_h((a() & 0xF) < (r8 & 0xF)), flag_c(r8 > a());
 					a() -= r8;
@@ -226,8 +254,10 @@ struct CPU {
 				return lo | (static_cast<uint16_t>(read(sp++)) << 8);
 			};
 			switch(op_low3bits) {
-				case 0: if(op_upper5bits < 034) { // JP <flag>
-
+				case 0: if(op_upper5bits < 034) { // RET <flag>
+					cycles++;
+					if(get_flag(op_upper5bits & 3)) pc = pop16();
+					return cycles;
 				} else switch(op_upper5bits) {
 					case 034: // LD [0xFF00+imm8], A
 						write(0xFF00 + ld_imm8(), a());
@@ -239,9 +269,15 @@ struct CPU {
 					case 037: throw_exc();
 				};
 				case 1: if(op_upper5bits & 1) switch(op_upper5bits) {
-					case 031:
+					case 033: // RETI
+						IME = true;
+						[[fallthrough]];
+					case 031: // RET
 						pc = pop16();
 						cycles++;
+						return cycles;
+					case 035: // JP HL
+						pc = hl;
 						return cycles;
 					default: throw_exc();
 				} else { // POP r16
@@ -249,7 +285,12 @@ struct CPU {
 					return cycles;
 				}
 				case 2: if(op_upper5bits < 034) { // JP <flag>, a16
-					break;
+					const auto next_addr = ld_imm16();
+					if(get_flag(op_upper5bits & 3)) {
+						cycles++;
+						pc = next_addr;
+					}
+					return cycles;
 				} else switch(op_upper5bits) {
 					case 034: // LD [0xFF00+C], A
 						write(0xFF00 + c(), a());
@@ -323,6 +364,9 @@ struct CPU {
 							flag_z((r8 & (1 << bit_op_b3)) == 0), flag_n(0), flag_h(1);
 							return cycles;
 						} else { // RES/SET b3, R8
+							const uint8_t new_bitvalue = -((bit_op_upper5bits >> 3) & 1); // 255 if set, 0 if rst
+							write_r8(bit_op_b3, mask_combine(1 << bit_op_lower3bits, read_r8(bit_op_b3), new_bitvalue));
+							return cycles;
 						}
 
 						throw_exc(
@@ -350,6 +394,10 @@ struct CPU {
 					push16(*(BC_DE_HL_AF[(op_upper5bits >> 1) & 3]));
 					return cycles;
 				} else break; // illegal instruction
+				case 7: // RST
+					push16(pc);
+					pc = (op_upper5bits & 7) * 8;
+					return cycles;
 			}
 		}
 
@@ -374,6 +422,8 @@ private:
 	// regs - TODO seed if needed.
 	Reg16 af{0xCAFE}, bc{0xCAFE}, de{0xCAFE}, hl{0xCAFE};
 	Reg16 sp{0xCAFE}, pc{};
+
+	std::bitset<0x10000> visited{};
 
 	bool IME{false}; // interrupt master enable
 	bool IME_enable_pending{false};

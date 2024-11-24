@@ -10,6 +10,7 @@ namespace gb::ppu {
 struct PPU {
 	PPU(gb::memory::MMU& mmu) : mmu{mmu} {
 		// starting state == end of vblank
+		// TODO: the real starting state should be on line 0
 		lcd_status() = 0b1000'0000 | static_cast<uint8_t>(Mode::VBLANK);
 		lcd_cur_y() = LCD_HEIGHT + VBLANK_LINES - 1;
 	}
@@ -17,6 +18,7 @@ struct PPU {
 	const Frame& cur_frame() const { return frame; }
 
 	void tclk_tick() {
+		// TODO: LCD should generate interrupts (only when on), LCD should be reset when turned off
 		const auto cur_mode = mode();
 		Mode next_mode = cur_mode;
 		const auto EOL = line_clks == LINE_TCLKS - 1;
