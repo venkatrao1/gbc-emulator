@@ -13,7 +13,7 @@ namespace gb
 struct gameboy_emulator
 {
 	gameboy_emulator(std::vector<uint8_t> boot_rom, std::vector<uint8_t> cartridge_rom, std::optional<std::vector<uint8_t>> save_data)
-		: mmu{std::move(boot_rom), std::move(cartridge_rom), std::move(save_data)}
+		: mmu{std::move(boot_rom), std::move(cartridge_rom), std::move(save_data), joypad}
 	{
 	}
 
@@ -52,12 +52,32 @@ struct gameboy_emulator
 		while(true) run_frame();
 	}
 
+	void press(joypad::joypad_bits pressed) {
+		const auto joypad_flags = mmu.get<memory::addrs::JOYPAD>();
+		const bool read_dpad = (joypad_flags >> 4) & 1;
+		const bool read_buttons = (joypad_flags >> 5) & 1;
+		const auto old_bits = joypad.read_nybble(read_buttons, read_dpad);
+		joypad.press(pressed);
+		if(const auto new_bits = joypad.read_nybble(read_buttons, read_dpad); new_bits != old_bits) {
+			mmu.request_interrupt(gb::memory::interrupt_bits::JOYPAD);
+			log_debug("Requested joypad interrupt");
+		}
+	}
+
+	void release(joypad::joypad_bits released) {
+		joypad.release(released);
+	}
+
+private:
+	joypad::Joypad joypad;
+public:
 	memory::MMU mmu;
 	cpu::CPU cpu{mmu};
 	ppu::PPU ppu{mmu};
 
 	uint64_t total_mclks = 0;
 	uint64_t total_tclks = 0;
+
 };
 
 }

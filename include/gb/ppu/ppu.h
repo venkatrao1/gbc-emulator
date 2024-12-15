@@ -71,8 +71,8 @@ struct PPU {
 	std::string dump_state() const {
 		std::ostringstream ret;
 		#define DUMP_DEC(func_name) ret << #func_name "[" << static_cast<uint64_t>(func_name()) << "] "
-		#define DUMP_HEX(func_name) ret << std::format(#func_name "[{:#04x}] ", static_cast<uint64_t>(func_name()))
-		#define DUMP_BIN(func_name) ret << std::format(#func_name "[{:#010b}] ", static_cast<uint64_t>(func_name()))
+		#define DUMP_HEX(func_name) ret << std::format(#func_name "[{:#04x}] ", func_name())
+		#define DUMP_BIN(func_name) ret << std::format(#func_name "[{:#010b}] ", func_name())
 		DUMP_BIN(lcd_control);
 		DUMP_BIN(lcd_status);
 		DUMP_DEC(lcd_cur_y);
@@ -88,6 +88,7 @@ struct PPU {
 		DUMP_DEC(lcd_scroll_x);
 		DUMP_DEC(lcd_window_x);
 		DUMP_DEC(lcd_window_y);
+		#undef DUMP_DEC
 		#undef DUMP_HEX
 		#undef DUMP_BIN
 		return std::move(ret).str();

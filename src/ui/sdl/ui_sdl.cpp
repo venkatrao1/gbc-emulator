@@ -17,6 +17,25 @@
 
 namespace gb::ui::sdl {
 
+namespace {
+
+constexpr std::optional<joypad::joypad_bits> translate_keycode(const SDL_Keysym sym) {
+	using enum joypad::joypad_bits;
+	switch(sym.scancode) {
+		case SDL_SCANCODE_UP: return dpad_up;
+		case SDL_SCANCODE_DOWN: return dpad_down;
+		case SDL_SCANCODE_LEFT: return dpad_left;
+		case SDL_SCANCODE_RIGHT: return dpad_right;
+		case SDL_SCANCODE_SPACE: return select;
+		case SDL_SCANCODE_RETURN: return start;
+		case SDL_SCANCODE_X: return a;
+		case SDL_SCANCODE_Z: return b;
+		default: return std::nullopt;
+	}
+}
+
+}
+
 struct SDLGui : UI {
 	static constexpr std::string_view name = "gui";
 
@@ -79,6 +98,15 @@ struct SDLGui : UI {
 						break;
 					case SDL_WINDOWEVENT:
 						if(e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == SDL_GetWindowID(window)) quit = true;
+						break;
+					case SDL_KEYDOWN:
+						if(io.WantCaptureKeyboard) break;
+						if(e.key.repeat) break;
+						if(const auto translated = translate_keycode(e.key.keysym); translated) emulator->press(*translated);
+						break;
+					case SDL_KEYUP:
+						if(io.WantCaptureKeyboard) break;
+						if(const auto translated = translate_keycode(e.key.keysym); translated) emulator->release(*translated);
 						break;
 				}
 			}

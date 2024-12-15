@@ -4,6 +4,7 @@
 #include <gb/memory/memory_map.h>
 #include <gb/utils/log.h>
 #include <gb/utils/bitops.h>
+#include <gb/joypad.h>
 
 #include <optional>
 #include <vector>
@@ -13,8 +14,8 @@ namespace gb::memory {
 
 class MMU {
 public:
-	MMU(std::vector<uint8_t> boot_rom_in, std::vector<uint8_t> cartridge_rom, std::optional<std::vector<uint8_t>> save_data)
-		: cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in))
+	MMU(std::vector<uint8_t> boot_rom_in, std::vector<uint8_t> cartridge_rom, std::optional<std::vector<uint8_t>> save_data, joypad::Joypad& joypad)
+		: cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in)), joypad(joypad)
 	{}
 
 	// right now I'm throwing on behavior I never expect to see (illegal reads/writes)
@@ -46,8 +47,10 @@ public:
 		} else if (addr < IO_MMAP_END) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			switch(addr) {
-				case JOYPAD:
-					return mask_combine(0b0011'0000, uint8_t{0xFF}, mem); // TODO: this simulates no buttons being pressed.
+				case JOYPAD: {
+					const auto lower_nybble = joypad.read_nybble(mem & (1 << 5), mem & (1 << 4));
+					return ((mem | 0b1100'0000) & 0xF0) | lower_nybble;
+				}
 				case DIVIDER:
 					return mem;
 			}
@@ -176,6 +179,8 @@ private:
 	std::array<uint8_t, addrs::WORK_RAM_END - addrs::WORK_RAM_BEGIN> wram{};
 	std::array<uint8_t, addrs::OAM_END - addrs::OAM_BEGIN> oam{};
 	std::array<uint8_t, addrs::INTERRUPT_ENABLE - addrs::IO_MMAP_BEGIN + 1> high_mem{}; // io regs + hram + ie
+
+	const joypad::Joypad& joypad;
 
 	static std::array<uint8_t, 256> get_boot_rom(const std::span<const uint8_t> boot_rom_in) {
 		if(boot_rom_in.size() != 256) throw_exc("Boot rom has unexpected size {}", boot_rom_in.size());
