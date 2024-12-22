@@ -15,10 +15,12 @@ struct PPU {
 	const Frame& cur_frame() const { return frame; }
 
 	void reset() {
+		log_debug("resetting PPU");
 		// starting state == completely off, most things zeroed.
 		// starting state == end of vblank
 		// TODO: the real starting state should be on line 0
 		was_last_off = true;
+		stat_interrupt_wanted = false;
 		frame = {};
 		lcd_status() = 0b1000'0000 | static_cast<uint8_t>(Mode::HBLANK);
 		lcd_cur_y() = 0;
@@ -71,7 +73,12 @@ struct PPU {
 			if(++lcd_cur_y() == LCD_HEIGHT + VBLANK_LINES) {
 				lcd_cur_y() = 0;
 			};
-			next_mode = lcd_cur_y() < LCD_HEIGHT ? Mode::RD_OAM : Mode::VBLANK;
+			if(lcd_cur_y() < LCD_HEIGHT) {
+				next_mode = Mode::RD_OAM;
+			} else {
+				next_mode = Mode::VBLANK;
+				if(cur_mode != Mode::VBLANK) mmu.request_interrupt(memory::interrupt_bits::VBLANK);
+			}
 		}
 		else {
 			++line_clks;
@@ -79,7 +86,21 @@ struct PPU {
 			// (DRAW -> HBLANK) transition handled above.
 		}
 
-		lcd_status() = (lcd_status() & 0b1111'1000) | ((lcd_cmp_y() == lcd_cur_y()) << 2) | static_cast<uint8_t>(next_mode);
+		// stat interrupt check
+		bool next_stat_interrupt_wanted = false;
+		if((next_mode != Mode::VBLANK) && get_bit(lcd_status(), static_cast<uint8_t>(next_mode) + 3)) {
+			next_stat_interrupt_wanted = true;
+		}
+		const bool lyc_equals_ly = lcd_cmp_y() == lcd_cur_y();
+		if(get_bit(lcd_status(), 6) && lyc_equals_ly) {
+			next_stat_interrupt_wanted = true;
+		}
+		if(next_stat_interrupt_wanted && !stat_interrupt_wanted) {
+			mmu.request_interrupt(memory::interrupt_bits::LCD);
+		}
+		stat_interrupt_wanted = next_stat_interrupt_wanted;
+
+		lcd_status() = mask_combine<uint8_t>(0b0000'0111, lcd_status(), (lyc_equals_ly << 2) | static_cast<uint8_t>(next_mode));
 
 		// TODO: copy objects into buffer at beginning of mode 2 and sort
 		// TODO: dma during mode 3 causes big issues.
@@ -137,6 +158,7 @@ private:
 	uint16_t line_clks; // each tclk, counts up [0, LINE_TCLKS)
 	// uint16_t cur_x{LCD_WIDTH-1}; // cur pixel actually being drawn
 	bool was_last_off;
+	bool stat_interrupt_wanted;
 	// TODO: ppu only starts drawing a frame after it is enabled.
 	gb::memory::MMU& mmu;
 	Frame frame;

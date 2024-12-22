@@ -96,7 +96,7 @@ public:
 					mem = data;
 					return;
 				case SERIAL_CONTROL:
-					if(data & (1 << static_cast<uint8_t>(serial_control_bits::ENABLE))) throw_exc("Serial unimplemented; control data {:#04x}", data);
+					log_warn("Writing serial control {:#04x} but it is unimplemented", data);
 					mem = data;
 					return;
 				case TIMER_MODULO:
@@ -107,7 +107,10 @@ public:
 				// TODO: audio unimplemented - for now allow writes
 				mem = data;
 				return;
-			} else if(addr >= LCDS_BEGIN && addr < LCDS_END) switch(addr) {
+			} else if(addr < WAVETABLE_RAM_END) {
+				mem = data;
+				return;
+			} else if(addr < LCDS_END) switch(addr) {
 				// NOTE: only listing writable regs, anything else falls through
 				case LCD_CONTROL:
 					log_debug("LCDC {:08b}", data); // TODO remove
