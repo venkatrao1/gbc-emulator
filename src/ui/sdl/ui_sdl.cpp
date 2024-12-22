@@ -36,6 +36,47 @@ constexpr std::optional<joypad::joypad_bits> translate_keycode(const SDL_Keysym 
 
 }
 
+// contains useful debugging state.
+// TODO: this should be ported to tui mode?
+// TODO: color binary bits differently in show8 so you can see flickers easily.
+struct Debugger {
+	bool visible{true}; // can be toggled by host ui.
+
+	void handle_frame(const gb::gameboy_emulator& emulator) {
+		if(!visible) return;
+
+		constexpr static auto show8 = [](const std::string_view label, uint8_t value){
+			ImGui::Text("%s: \t[%s]", label.data(), std::format("{0:#04x} = {0:#010b}", value).c_str());
+		};
+		#define SHOW_MMU(x) show8(std::format(#x " ({:#06x})", memory::addrs::##x), emulator.mmu.get<memory::addrs::##x>());
+
+		ImGui::Begin("Debugger", &visible);
+		if(ImGui::TreeNode("CPU")) {
+			ImGui::TextUnformatted(emulator.cpu.dump_state().c_str());
+			ImGui::TreePop();
+		}
+		if(ImGui::TreeNode("PPU")) {
+			ImGui::TextUnformatted(emulator.ppu.dump_state().c_str());
+			ImGui::TreePop();
+		}
+		if(ImGui::TreeNode("MMU")) {
+			SHOW_MMU(INTERRUPT_FLAG);
+			SHOW_MMU(INTERRUPT_ENABLE);
+			ImGui::TreePop();
+		}
+		if(ImGui::TreeNode("Joypad")) {
+			SHOW_MMU(JOYPAD);
+			for(uint8_t i = 0; i<8; i++) {
+				const auto joypad_enum = static_cast<joypad::joypad_bits>(i);
+				ImGui::TextUnformatted(std::format("{}: {}", joypad_enum, emulator.get_joypad().read_button(joypad_enum)).c_str());
+			}
+			ImGui::TreePop();
+		}
+		ImGui::End();
+	}
+	#undef SHOW_MMU
+};
+
 struct SDLGui : UI {
 	static constexpr std::string_view name = "gui";
 
@@ -79,7 +120,6 @@ struct SDLGui : UI {
 	void main_loop() override {
 		const ImGuiIO& io = ImGui::GetIO();
 		bool quit = false;
-		bool show_custom_window = true;
 		GLuint texture;
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
@@ -103,6 +143,9 @@ struct SDLGui : UI {
 						if(io.WantCaptureKeyboard) break;
 						if(e.key.repeat) break;
 						if(const auto translated = translate_keycode(e.key.keysym); translated) emulator->press(*translated);
+						if(e.key.keysym.scancode == SDL_SCANCODE_D) {
+							debugger.visible = !debugger.visible;
+						}
 						break;
 					case SDL_KEYUP:
 						if(io.WantCaptureKeyboard) break;
@@ -128,14 +171,7 @@ struct SDLGui : UI {
 				ImGui_ImplSDL2_NewFrame();
 				ImGui::NewFrame();
 
-				if(show_custom_window) {
-					ImGui::Begin("foo", &show_custom_window, ImGuiWindowFlags_MenuBar);
-					if(ImGui::BeginMenuBar()) {
-						if (ImGui::MenuItem("Close", "Ctrl+W"))  { show_custom_window = false; }
-						ImGui::EndMenuBar();
-					}
-					ImGui::End();
-				}
+				debugger.handle_frame(*emulator);
 
 				ImGui::Render();
 				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -183,6 +219,7 @@ private:
 	}
 
 	std::optional<gb::gameboy_emulator> emulator;
+	Debugger debugger;
 	SDL_Window* window{nullptr};
 	SDL_GLContext context{nullptr};
 };

@@ -68,6 +68,9 @@ struct gameboy_emulator
 		joypad.release(released);
 	}
 
+	// for debug
+	const joypad::Joypad& get_joypad() const { return joypad; }
+
 private:
 	joypad::Joypad joypad;
 public:

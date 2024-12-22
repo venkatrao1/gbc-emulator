@@ -9,17 +9,35 @@ namespace gb::ppu {
 
 struct PPU {
 	PPU(gb::memory::MMU& mmu) : mmu{mmu} {
-		// starting state == end of vblank
-		// TODO: the real starting state should be on line 0
-		lcd_status() = 0b1000'0000 | static_cast<uint8_t>(Mode::VBLANK);
-		lcd_cur_y() = LCD_HEIGHT + VBLANK_LINES - 1;
+		reset();
 	}
 
 	const Frame& cur_frame() const { return frame; }
 
+	void reset() {
+		// starting state == completely off, most things zeroed.
+		// starting state == end of vblank
+		// TODO: the real starting state should be on line 0
+		was_last_off = true;
+		frame = {};
+		lcd_status() = 0b1000'0000 | static_cast<uint8_t>(Mode::HBLANK);
+		lcd_cur_y() = 0;
+		line_clks = LINE_TCLKS - 1; // TODO: not sure if this is right.
+	}
+
 	void tclk_tick() {
 		// TODO: LCD should generate interrupts (only when on), LCD should be reset when turned off
 		const auto cur_mode = mode();
+		const auto LCDC = lcd_control();
+		if(const bool lcd_enable = get_bit(LCDC, 7); !lcd_enable) {
+			if(was_last_off) return; // don't continually reset
+			if(cur_mode != Mode::VBLANK) throw_exc("turned off LCD while in mode {}", static_cast<int>(cur_mode));
+			reset();
+			return;
+		}
+
+		was_last_off = false;
+
 		Mode next_mode = cur_mode;
 		const auto EOL = line_clks == LINE_TCLKS - 1;
 
@@ -29,7 +47,6 @@ struct PPU {
 			if(line_clks >= MODE2_TCLKS) {
 				if(const unsigned cur_x = line_clks - MODE2_TCLKS; cur_x < LCD_WIDTH) {
 					// draw a pixel - for now only bg, ignoring delay
-					const auto LCDC = lcd_control();
 					const bool enable_bg = LCDC & 1;
 					if(enable_bg) {
 						static_assert(0b1'0000 << 7 == 0x800);
@@ -117,10 +134,12 @@ private:
 	[[nodiscard]] const uint8_t& lcd_window_x() const { return mmu.get<memory::addrs::LCD_WINDOW_X>(); };
 
 	// starting state == end of vblank
-	uint16_t line_clks{LINE_TCLKS - 1}; // each tclk, counts up [0, LINE_TCLKS)
+	uint16_t line_clks; // each tclk, counts up [0, LINE_TCLKS)
 	// uint16_t cur_x{LCD_WIDTH-1}; // cur pixel actually being drawn
+	bool was_last_off;
+	// TODO: ppu only starts drawing a frame after it is enabled.
 	gb::memory::MMU& mmu;
-	Frame frame{};
+	Frame frame;
 };
 
 }

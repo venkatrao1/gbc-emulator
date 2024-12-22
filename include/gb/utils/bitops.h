@@ -11,4 +11,16 @@ template<std::unsigned_integral T>
 	return (mask & in1) | (~mask & in0);
 }
 
+[[nodiscard]] constexpr bool get_bit(std::unsigned_integral auto in, uint8_t bit_idx) {
+	return (in >> bit_idx) & 1;
+}
+
+constexpr void set_bit(std::unsigned_integral auto& in, uint8_t bit_idx) {
+	in |= (1ULL << bit_idx);
+}
+
+constexpr void rst_bit(std::unsigned_integral auto& in, uint8_t bit_idx) {
+	in &= ~(1ULL << bit_idx);
+}
+
 }
