@@ -48,7 +48,7 @@ public:
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			switch(addr) {
 				case JOYPAD: {
-					const auto lower_nybble = joypad.read_nybble(mem & (1 << 5), mem & (1 << 4));
+					const auto lower_nybble = joypad.read_nybble(!get_bit(mem, 5),!get_bit(mem, 4));
 					return ((mem | 0b1100'0000) & 0xF0) | lower_nybble;
 				}
 				case DIVIDER:
