@@ -365,7 +365,7 @@ struct CPU {
 							return cycles;
 						} else { // RES/SET b3, R8
 							const uint8_t new_bitvalue = -((bit_op_upper5bits >> 3) & 1); // 255 if set, 0 if rst
-							write_r8(bit_op_b3, mask_combine(1 << bit_op_lower3bits, read_r8(bit_op_b3), new_bitvalue));
+							write_r8(bit_op_lower3bits, mask_combine(1 << bit_op_b3, read_r8(bit_op_lower3bits), new_bitvalue));
 							return cycles;
 						}
 
