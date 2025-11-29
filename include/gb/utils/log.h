@@ -28,7 +28,7 @@ constexpr std::string_view to_string(const level lvl) {
 }
 
 constexpr static auto CURRENT_LOG_LEVEL = level::DEBUG;
-const bool IS_TTY = true; // TODO: can detect if running w/ tty output, or add a flag
+extern const bool IS_TTY;
 
 struct ANSIEscape {
 	const std::string_view val;
@@ -55,7 +55,7 @@ consteval std::string_view trim_src_path(const std::string_view file_orig) {
 	constexpr std::string_view file{__FILE__};
 	constexpr auto rootDir = file.substr(0, file.rfind("include"));
 	static_assert(rootDir.size() < file.size());
-	return file_orig.substr(std::mismatch(file_orig.begin(), file_orig.end(), rootDir.begin(), rootDir.end()).first - file_orig.begin());
+	return {std::mismatch(file_orig.begin(), file_orig.end(), rootDir.begin(), rootDir.end()).first, file_orig.end()};
 }
 
 struct SourceLocation {
@@ -78,7 +78,7 @@ void log(const level lvl, FmtAndSourceLocation<std::type_identity_t<Args>...> fm
 	if (lvl > CURRENT_LOG_LEVEL) return;
 
 	using namespace fg_colors;
-	// TODO add time?
+	// TODO add time, use format
 	std::cout << GREEN << '[' << to_string(lvl) << "] " << CYAN << fmt_sloc.trimmed_file << ':' << fmt_sloc.loc.line() << ": " << NONE;
 	std::format_to(std::ostream_iterator<char>(std::cout), fmt_sloc.fmt, std::forward<decltype(args)>(args)...);
 	std::cout << '\n';
@@ -110,7 +110,11 @@ void log_debug(logging::FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_
 
 template<class... Args>
 [[noreturn]] void throw_exc(logging::FmtAndSourceLocation<std::type_identity_t<Args>...> fmt_sloc, Args&&... args) {
-	throw std::runtime_error{std::format("{}:{}: ", fmt_sloc.trimmed_file, fmt_sloc.loc.line()) + std::format(fmt_sloc.fmt, std::forward<Args>(args)...)};
+	std::string msg;
+	auto iter = std::back_inserter(msg);
+	std::format_to(iter, "{}:{}: ", fmt_sloc.trimmed_file, fmt_sloc.loc.line());
+ 	std::format_to(iter, fmt_sloc.fmt, std::forward<Args>(args)...);
+	throw std::runtime_error{msg};
 }
 
 [[noreturn]] void throw_exc(logging::FmtAndSourceLocation<> fmt_sloc = "");
