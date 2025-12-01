@@ -7,7 +7,7 @@ namespace gb::cpu {
 
 // af, bc, de, hl are all 2 8-bit registers that can form a 16-bit reg.
 // because I don't want to rely on nonstandard aliasing, we can't just stick 'em in a union.
-struct Reg16 {
+struct alignas(uint16_t) Reg16 {
 	constexpr Reg16() = default;
 	constexpr Reg16(uint16_t in) : lo{static_cast<uint8_t>(in & 0xFF)}, hi{static_cast<uint8_t>(in >> 8)} {}
 

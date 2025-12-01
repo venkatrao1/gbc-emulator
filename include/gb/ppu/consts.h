@@ -38,6 +38,8 @@ constexpr double FRAME_HZ = consts::TCLK_HZ / (LINE_TCLKS * (LCD_HEIGHT+VBLANK_L
 // 	uint16_t raw{};
 // };
 
+constexpr uint8_t TRANSPARENT = 0;
+
 struct Gray {
 	uint8_t raw{}; // 0 - 3, 0 is lightest
 };
@@ -51,5 +53,14 @@ enum class Mode : uint8_t {
 	RD_OAM = 2,
 	DRAW = 3,
 };
+
+struct oam_entry {
+	uint8_t y_plus_16;
+	uint8_t x_plus_8;
+	uint8_t tile_idx;
+	uint8_t flags;
+};
+
+constexpr auto NUM_OAM_ENTRIES = (memory::addrs::OAM_END - memory::addrs::OAM_BEGIN) / sizeof(oam_entry);
 
 }

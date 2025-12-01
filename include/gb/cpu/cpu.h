@@ -122,6 +122,7 @@ struct CPU {
 					}
 					return cycles;
 				}
+				break;
 			case 1:
 				if(op_upper5bits & 1) { // ADD HL, r16
 					const auto& r16 = *(BC_DE_HL_SP[op_upper5bits >> 1]);
@@ -213,7 +214,6 @@ struct CPU {
 			write_r8(op_upper5bits & 7, read_r8(op_low3bits));
 			return cycles;
 		} else if (op_upper5bits < 030 || op_low3bits == 6) { // 0o200 <= op < 0o300 (also 0o3X6) - bitwise ops and compare
-			// all of these opcodes (except halt) load r8.
 			const auto r8 = op_upper5bits < 030 ? read_r8(op_low3bits) : ld_imm8();
 			switch(op_upper5bits & 7) {
 				case 0: // ADD A, r8 // ADD A, n8

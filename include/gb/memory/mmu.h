@@ -165,6 +165,10 @@ public:
 		return vram.data();
 	}
 
+	const auto& oam_view() const {
+		return oam;
+	}
+
 	// request an interrupt
 	void request_interrupt(interrupt_bits i) { get<addrs::INTERRUPT_FLAG>() |= (1 << static_cast<uint8_t>(i)); }
 
