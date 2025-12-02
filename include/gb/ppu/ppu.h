@@ -20,11 +20,12 @@ struct PPU {
 		// starting state == completely off, most things zeroed.
 		// starting state == end of vblank
 		// TODO: the real starting state should be on line 0
+		// TODO: make sure all state is reset, maybe invoke constructor
 		was_last_off = true;
 		stat_interrupt_wanted = false;
 		frame = {};
-		lcd_status() = 0b1000'0000 | static_cast<uint8_t>(Mode::HBLANK);
-		lcd_cur_y() = 0;
+		lcd_status() = 0b1000'0000 | static_cast<uint8_t>(Mode::VBLANK);
+		lcd_cur_y() = (VBLANK_LINES + LCD_HEIGHT) - 1;
 		line_clks = LINE_TCLKS - 1; // TODO: not sure if this is right.
 	}
 
@@ -56,14 +57,15 @@ struct PPU {
 				const bool enable_bg_window = LCDC & 1;
 				if(enable_bg_window) {
 					const int window_x = static_cast<int>(cur_x) + 7 - static_cast<int>(lcd_window_x());
-					const int window_y = static_cast<int>(lcd_cur_y()) - static_cast<int>(lcd_window_y());
 					
 					uint8_t x, y; // tilemap x/y
 					bool tile_map;
-					if(get_bit(LCDC, 5) && window_x >= 0 && window_y >= 0) {
+					if(get_bit(LCDC, 5) && window_x >= 0 && wy_cond_triggered) {
+						// TODO: if window disabled mid-line glitch occurs
 						x = static_cast<uint8_t>(window_x);
-						y = static_cast<uint8_t>(window_y);
+						y = window_y_counter;
 						tile_map = get_bit(LCDC, 6);
+						wx_cond_triggered = true;
 					} else {
 						x = lcd_scroll_x() + static_cast<uint8_t>(cur_x);
 						y = lcd_scroll_y() + lcd_cur_y();
@@ -101,10 +103,15 @@ struct PPU {
 		if(EOL) {
 			line_clks = 0;
 			if(++lcd_cur_y() == LCD_HEIGHT + VBLANK_LINES) {
+				window_y_counter = 0;
+				wy_cond_triggered = false;
 				lcd_cur_y() = 0;
 			};
 			if(lcd_cur_y() < LCD_HEIGHT) {
 				next_mode = Mode::RD_OAM;
+				if(wx_cond_triggered && wy_cond_triggered) ++window_y_counter;
+				wx_cond_triggered = false;
+				if(lcd_cur_y() == lcd_window_y()) wy_cond_triggered = true;
 			} else {
 				next_mode = Mode::VBLANK;
 				if(cur_mode != Mode::VBLANK) mmu.request_interrupt(memory::interrupt_bits::VBLANK);
@@ -230,6 +237,11 @@ private:
 	};
 	std::array<sprite_fifo_px, 8> sprite_fifo{};
 	uint8_t sprite_fifo_head = 0;
+
+	// TODO: not emulating all of window's glitchy behavior
+	bool wy_cond_triggered = false;
+	bool wx_cond_triggered = false; 
+	uint8_t window_y_counter = 0;
 
 	// check for sprite(s) at current pixel,and load into fifo, then pop pixel off fifo
 	sprite_fifo_px process_sprite_fifo_px(uint8_t x_plus_8, uint8_t LCDC) {
