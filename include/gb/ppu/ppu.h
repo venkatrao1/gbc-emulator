@@ -146,7 +146,7 @@ struct PPU {
 
 		// stat interrupt check
 		bool next_stat_interrupt_wanted = false;
-		if((next_mode != Mode::VBLANK) && get_bit(lcd_status(), static_cast<uint8_t>(next_mode) + 3)) {
+		if((next_mode != Mode::DRAW) && get_bit(lcd_status(), static_cast<uint8_t>(next_mode) + 3)) {
 			next_stat_interrupt_wanted = true;
 		}
 		const bool lyc_equals_ly = lcd_cmp_y() == lcd_cur_y();

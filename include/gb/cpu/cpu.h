@@ -74,16 +74,24 @@ struct CPU {
 			write(--sp, reg.hi);
 			write(--sp, reg.lo);
 		};
-
-		if(!visited[pc]) {
-			log_debug("New PC: {:#06x}", pc);
-			visited[pc] = true;
+		
+		const auto requested_interrupt = get_interrupt(); 
+		if(halted && !requested_interrupt.has_value()) {
+			return 1; // sleeping
 		}
 
+		// halt increments PC when waking up (if it exits immediately, halt bug occurs.)
 		const uint8_t opcode = ld_imm8();
+		if(halted) {
+			pc--; // PC points at byte after halt AND so does opcode! (halt bug if !IME)
+			halted = false;
+			if(!IME) [[unlikely]] {
+				log_info("Halt bug triggered! {}", dump_state());
+			}
+		}
 
 		if(IME) {
-			if(const auto requested_interrupt = get_interrupt(); requested_interrupt.has_value()) {
+			if(requested_interrupt.has_value()) {
 				IME = false;
 				IME_enable_pending = false;
 				const uint16_t next_addr = 0x40 + (8 * static_cast<uint8_t>(*requested_interrupt));
@@ -98,6 +106,11 @@ struct CPU {
 		if(IME_enable_pending) {
 			IME = true;
 			IME_enable_pending = false;
+		}
+
+		if(!visited[pc]) {
+			log_debug("New PC: {:#06x}", pc);
+			visited[pc] = true;
 		}
 
 		// The gb opcodes are easy to decode as octal.
@@ -209,7 +222,9 @@ struct CPU {
 			}
 		} else if (op_upper5bits < 020) { // 0o100 <= op < 0o200 - LD r8, r8
 			if(constexpr static uint8_t OPCODE_HALT{0166}; opcode == OPCODE_HALT) {
-				throw_exc("Halt unimplemented!\n{}", dump_state());
+				log_debug("Halting, IE = {:08b}, IF = {:08b}", mmu.get<memory::addrs::INTERRUPT_ENABLE>(), mmu.get<memory::addrs::INTERRUPT_FLAG>());
+				halted = true;
+				return cycles;
 			}
 			write_r8(op_upper5bits & 7, read_r8(op_low3bits));
 			return cycles;
@@ -396,7 +411,7 @@ struct CPU {
 				} else break; // illegal instruction
 				case 7: // RST
 					push16(pc);
-					pc = (op_upper5bits & 7) * 8;
+					pc = opcode & 0x38;
 					return cycles;
 			}
 		}
@@ -427,6 +442,7 @@ private:
 
 	bool IME{false}; // interrupt master enable
 	bool IME_enable_pending{false};
+	bool halted{false};
 
 	// not a huge fan of the 1 letter identifiers tbh, but they make sense for CPU regs.
 	[[nodiscard]] constexpr uint8_t& a() { return af.hi; }
