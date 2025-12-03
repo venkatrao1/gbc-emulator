@@ -3,6 +3,7 @@
 
 #include <gb/cpu/cpu.h>
 #include <gb/memory/mmu.h>
+#include <gb/memory/serial.h>
 #include <gb/ppu/ppu.h>
 #include <gb/utils/log.h>
 
@@ -10,7 +11,7 @@ namespace gb
 {
 
 // the core of the GB emulator. contains all the pieces of the gameboy.
-struct gameboy_emulator
+struct gameboy_emulator : SerialIO
 {
 	gameboy_emulator(std::vector<uint8_t> boot_rom, std::vector<uint8_t> cartridge_rom, std::optional<std::vector<uint8_t>> save_data)
 		: mmu{std::move(boot_rom), std::move(cartridge_rom), std::move(save_data), joypad}
@@ -70,6 +71,11 @@ struct gameboy_emulator
 
 	// for debug
 	const joypad::Joypad& get_joypad() const { return joypad; }
+
+	// external gameboy requests to shift out a byte, return byte from memory to shift in
+	uint8_t handle_serial_transfer([[maybe_unused]] uint8_t value, [[maybe_unused]] uint32_t baud) final {
+		throw_exc();
+	}
 
 private:
 	joypad::Joypad joypad;

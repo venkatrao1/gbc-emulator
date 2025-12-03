@@ -2,6 +2,8 @@
 
 #include <gb/memory/cartridge/cartridge.h>
 #include <gb/memory/memory_map.h>
+#include <gb/memory/serial.h>
+#include <gb/consts.h>
 #include <gb/utils/log.h>
 #include <gb/utils/bitops.h>
 #include <gb/joypad.h>
@@ -92,12 +94,15 @@ public:
 					mem = mask_combine(0b0011'0000, mem, data);
 					return;
 				case SERIAL_DATA:
-					log_warn("Writing serial data {:#04x} but it is unimplemented", data);
+					if(serial_bits_remaining) throw_exc();
 					mem = data;
 					return;
 				case SERIAL_CONTROL:
-					log_warn("Writing serial control {:#04x} but it is unimplemented", data);
-					mem = data;
+					mem = data | 0b0111'1110; // TODO: on CGB bit 1 has function too
+					if(mem == 0xFF) { // both low and high bits set, start transfer with internal clock
+						serial_shift_in = serial_conn.get().handle_serial_transfer(get<SERIAL_DATA>(), static_cast<unsigned>(consts::TCLK_HZ / (4 *SERIAL_MCLKS_PER_BIT)));
+						serial_bits_remaining = 8;
+					}
 					return;
 				case TIMER_MODULO:
 				case INTERRUPT_FLAG:
@@ -175,7 +180,24 @@ public:
 	void handle_timers(uint64_t old_mclks, uint64_t new_mclks) {
 		using namespace addrs;
 		// DIV ticks up every 64 mclks.
-		if((new_mclks ^ old_mclks) & (~63)) get<DIVIDER>()++;
+		get<DIVIDER>() += static_cast<uint8_t>((new_mclks / 64) - (old_mclks / 64));
+
+		if(serial_bits_remaining) {
+			const auto serial_clks = (new_mclks / SERIAL_MCLKS_PER_BIT) - (old_mclks / SERIAL_MCLKS_PER_BIT);
+			const auto num_shifts = static_cast<uint8_t>(std::min<decltype(serial_clks)>(serial_bits_remaining, serial_clks));
+			auto& sb = get<addrs::SERIAL_DATA>();
+			sb = (sb << num_shifts) + (serial_shift_in >> (8 - num_shifts));
+			serial_shift_in <<= num_shifts;
+			serial_bits_remaining -= num_shifts;
+			if(serial_bits_remaining == 0) {
+				rst_bit(get<addrs::SERIAL_CONTROL>(), 7);
+				request_interrupt(interrupt_bits::SERIAL);
+			}
+		}
+	}
+
+	void connect_serial(SerialIO& conn) {
+		serial_conn = conn;
 	}
 
 private:
@@ -186,6 +208,12 @@ private:
 	std::array<uint8_t, addrs::WORK_RAM_END - addrs::WORK_RAM_BEGIN> wram{};
 	std::array<uint8_t, addrs::OAM_END - addrs::OAM_BEGIN> oam{};
 	std::array<uint8_t, addrs::INTERRUPT_ENABLE - addrs::IO_MMAP_BEGIN + 1> high_mem{}; // io regs + hram + ie
+
+	// TODO: if SB written during a transfer, we need a bit-level protocol as opposed to current byte-level
+	std::reference_wrapper<SerialIO> serial_conn{SERIAL_DISCONNECTED};
+	uint8_t serial_shift_in{};
+	uint8_t serial_bits_remaining = 0;
+	constexpr static auto SERIAL_MCLKS_PER_BIT = 128; // TODO: not const for CGB
 
 	const joypad::Joypad& joypad;
 
