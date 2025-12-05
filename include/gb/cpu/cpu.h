@@ -126,6 +126,12 @@ struct CPU {
 				if(op_upper5bits < 3) switch(op_upper5bits) {
 					case 0: // NOP
 						return cycles;
+					case 1: { // LD [a16], SP
+						uint16_t addr = ld_imm16();
+						sp.lo = read(addr);
+						sp.hi = read(addr+1);
+						return cycles;
+					}
 				} else { // JR <flag>, e8 // JR e8
 					const bool should_jump = op_upper5bits == 3 ? true : get_flag(op_upper5bits & 3);
 					const auto offset = static_cast<int8_t>(ld_imm8());
@@ -216,9 +222,11 @@ struct CPU {
 					a() = ~a();
 					return cycles;
 				case 6: // SCF
-					break;
+					flag_n(0), flag_h(0), flag_c(1);
+					return cycles;
 				case 7: // CCF
-					break;
+					flag_n(0), flag_h(0), flag_c(!flag_c());
+					return cycles;
 			}
 		} else if (op_upper5bits < 020) { // 0o100 <= op < 0o200 - LD r8, r8
 			if(constexpr static uint8_t OPCODE_HALT{0166}; opcode == OPCODE_HALT) {

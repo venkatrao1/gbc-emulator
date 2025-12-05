@@ -49,6 +49,10 @@ public:
 		} else if (addr < IO_MMAP_END) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			switch(addr) {
+				case SERIAL_DATA:
+					return mem;
+				case SERIAL_CONTROL: 
+					return (mem | 0b0111'1110); // TODO: on CGB bit 1 has function too
 				case JOYPAD: {
 					const auto lower_nybble = joypad.read_nybble(!get_bit(mem, 5),!get_bit(mem, 4));
 					return ((mem | 0b1100'0000) & 0xF0) | lower_nybble;
@@ -98,8 +102,8 @@ public:
 					mem = data;
 					return;
 				case SERIAL_CONTROL:
-					mem = data | 0b0111'1110; // TODO: on CGB bit 1 has function too
-					if(mem == 0xFF) { // both low and high bits set, start transfer with internal clock
+					mem = data; // TODO: on CGB bit 1 has function too
+					if((mem & 0x81) == 0x81) { // both low and high bits set, start transfer with internal clock
 						serial_shift_in = serial_conn.get().handle_serial_transfer(get<SERIAL_DATA>(), static_cast<unsigned>(consts::TCLK_HZ / (4 *SERIAL_MCLKS_PER_BIT)));
 						serial_bits_remaining = 8;
 					}
@@ -185,6 +189,7 @@ public:
 		if(serial_bits_remaining) {
 			const auto serial_clks = (new_mclks / SERIAL_MCLKS_PER_BIT) - (old_mclks / SERIAL_MCLKS_PER_BIT);
 			const auto num_shifts = static_cast<uint8_t>(std::min<decltype(serial_clks)>(serial_bits_remaining, serial_clks));
+			// log_debug("Shifting out {} bits, {} clks since last called, {} bits remaining", num_shifts, new_mclks-old_mclks, serial_bits_remaining);
 			auto& sb = get<addrs::SERIAL_DATA>();
 			sb = (sb << num_shifts) + (serial_shift_in >> (8 - num_shifts));
 			serial_shift_in <<= num_shifts;

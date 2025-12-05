@@ -7,15 +7,9 @@
 
 namespace gb::ppu {
 
-constexpr unsigned LCD_WIDTH = 160;
-constexpr unsigned LCD_HEIGHT = 144;
-
-constexpr unsigned VBLANK_LINES = 10;
 constexpr unsigned MODE2_TCLKS = 80;
-constexpr unsigned LINE_TCLKS = 456;
 
 constexpr unsigned TILE_SZ = 8;
-constexpr double FRAME_HZ = consts::TCLK_HZ / (LINE_TCLKS * (LCD_HEIGHT+VBLANK_LINES));
 
 // TODO: GBC
 // struct Color {

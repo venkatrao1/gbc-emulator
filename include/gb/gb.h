@@ -33,7 +33,7 @@ struct gameboy_emulator : SerialIO
 				for(int i = 0; i<cpu_tclks; i++) ppu.tclk_tick();
 			}
 		} catch (...) {
-			log_error("Exception raised, CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
+			log_error("Exception raised, dumping state:\n{}", dump_state());
 			log_debug("frame:");
 			char out[ppu::LCD_WIDTH]{};
 			for(const auto& row : ppu.cur_frame()) {
@@ -75,6 +75,11 @@ struct gameboy_emulator : SerialIO
 	// external gameboy requests to shift out a byte, return byte from memory to shift in
 	uint8_t handle_serial_transfer([[maybe_unused]] uint8_t value, [[maybe_unused]] uint32_t baud) final {
 		throw_exc();
+	}
+
+	// for UI and debugging
+	std::string dump_state() const {
+		return std::format("CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
 	}
 
 private:

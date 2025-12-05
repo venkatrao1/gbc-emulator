@@ -24,7 +24,7 @@ struct TUI : UI {
 		emulator.emplace(std::move(bootrom), std::move(cartridgerom), std::move(savedata));
 	}
 
-	void main_loop() override {
+	int main_loop() override {
 		emulator.value().run();
 	}
 

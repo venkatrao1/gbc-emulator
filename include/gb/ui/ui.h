@@ -11,7 +11,8 @@ namespace gb::ui {
 // UI for the gb emulator
 // there can be multiple implementations (GUI, TUI, headless)
 struct UI {
-	virtual void main_loop() = 0;
+	// @return exit code for program
+	virtual int main_loop() = 0;
 	virtual ~UI() = default;
 
 	using CreationFunction = std::function<std::unique_ptr<UI>(int argc, const char* const argv[])>;

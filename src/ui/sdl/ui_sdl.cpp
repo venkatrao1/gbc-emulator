@@ -40,7 +40,7 @@ constexpr std::optional<joypad::joypad_bits> translate_keycode(const SDL_Keysym 
 // TODO: this should be ported to tui mode?
 // TODO: color binary bits differently in show8 so you can see flickers easily.
 struct Debugger {
-	bool visible{true}; // can be toggled by host ui.
+	bool visible{false}; // can be toggled by host ui.
 
 	void handle_frame(const gb::gameboy_emulator& emulator) {
 		if(!visible) return;
@@ -117,9 +117,9 @@ struct SDLGui : UI {
 		if(!ImGui_ImplOpenGL3_Init()) throw_exc();
 	}
 
-	void main_loop() override {
+	int main_loop() override {
 		const ImGuiIO& io = ImGui::GetIO();
-		bool quit = false;
+		
 		GLuint texture;
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
@@ -128,6 +128,7 @@ struct SDLGui : UI {
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, fboId);
 		glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
 
+		bool quit = false;
 		while( quit == false ){
 			for(SDL_Event e; SDL_PollEvent( &e );){ // handle SDL events
 				ImGui_ImplSDL2_ProcessEvent(&e);
@@ -155,10 +156,10 @@ struct SDLGui : UI {
 			}
 
 			// TODO: if this throws, freeze on current screen and let us poke around in debugger?
-			// const auto frame_begin = SDL_GetPerformanceCounter();
+			const auto frame_begin = SDL_GetPerformanceCounter();
 			emulator->run_frame();
-			// const auto frame_end = SDL_GetPerformanceCounter();
-			// gb::log_debug("frame took {} ms", static_cast<double>(frame_end - frame_begin) * 1000 / SDL_GetPerformanceFrequency());
+			const auto frame_end = SDL_GetPerformanceCounter();
+			gb::log_debug("frame took {} ms", static_cast<double>(frame_end - frame_begin) * 1000 / SDL_GetPerformanceFrequency());
 
 			// Render GB screen
 			prepare_texture();
@@ -187,7 +188,10 @@ struct SDLGui : UI {
 			}
 
 			SDL_Delay(1);
+			// TODO: figure out how to sync <60 Hz emulation to 60 hz screen (more important once audio works)
 		}
+
+		return 0;
 	}
 
 	~SDLGui() override {
