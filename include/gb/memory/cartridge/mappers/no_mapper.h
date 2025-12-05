@@ -20,7 +20,7 @@ struct NoMapper {
 		}
 
 		if(romIn.size() != 32'768) {
-			throw_exc("Received non-32k rom for NoMapper: size {}", rom.size());
+			throw_exc("Received non-32k rom for NoMapper: size {}", romIn.size());
 		}
 
 		std::copy(romIn.begin(), romIn.end(), rom.begin());

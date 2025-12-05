@@ -82,6 +82,8 @@ struct gameboy_emulator : SerialIO
 		return std::format("CPU state:\n{}\nPPU state:\n{}", cpu.dump_state(), ppu.dump_state());
 	}
 
+	void connect_serial(SerialIO& conn) { mmu.connect_serial(conn); }
+
 private:
 	joypad::Joypad joypad;
 public:

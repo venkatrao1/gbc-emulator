@@ -408,6 +408,15 @@ struct CPU {
 						return cycles;
 				}
 					break;
+				case 4: { // CALL <flag>, a16
+					if(op_upper5bits >= 034) break; // illegal instruction
+					auto addr = ld_imm16(); 
+					if(get_flag(op_upper5bits & 3)) {
+						push16(pc);
+						pc = addr;
+					}
+					return cycles;
+				}
 				case 5: if(op_upper5bits == 031) { // CALL a16
 					const auto addr = ld_imm16();
 					push16(pc);

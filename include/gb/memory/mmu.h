@@ -58,7 +58,11 @@ public:
 					return ((mem | 0b1100'0000) & 0xF0) | lower_nybble;
 				}
 				case DIVIDER:
+				case TIMER_COUNTER:
+				case TIMER_MODULO:
 					return mem;
+				case TIMER_CONTROL:
+					return mem | 0b1111'1000;
 			}
 			if(addr >= LCDS_BEGIN && addr < LCDS_END) return mem; // all locations readable, TODO populate in PPU
 			throw_exc("Unimplemented: memory read from {:#x}", addr);
@@ -108,7 +112,12 @@ public:
 						serial_bits_remaining = 8;
 					}
 					return;
+				case DIVIDER:
+					mem = 0;
+					return;
+				case TIMER_COUNTER: // TODO emulate weird timer behavior
 				case TIMER_MODULO:
+				case TIMER_CONTROL:
 				case INTERRUPT_FLAG:
 					mem = data;
 					return;
@@ -182,6 +191,7 @@ public:
 	void request_interrupt(interrupt_bits i) { get<addrs::INTERRUPT_FLAG>() |= (1 << static_cast<uint8_t>(i)); }
 
 	void handle_timers(uint64_t old_mclks, uint64_t new_mclks) {
+		// TODO: this should just be a tick_mclk function.
 		using namespace addrs;
 		// DIV ticks up every 64 mclks.
 		get<DIVIDER>() += static_cast<uint8_t>((new_mclks / 64) - (old_mclks / 64));
@@ -197,6 +207,18 @@ public:
 			if(serial_bits_remaining == 0) {
 				rst_bit(get<addrs::SERIAL_CONTROL>(), 7);
 				request_interrupt(interrupt_bits::SERIAL);
+			}
+		}
+
+		if(const auto timer_control = get<TIMER_CONTROL>(); timer_control & 0b100) { // timer enabled
+			const auto tima_mclks_shift = 2 + 2*((timer_control-1)&3);
+			auto& tima = get<TIMER_COUNTER>();
+			const auto num_ticks = (new_mclks >> tima_mclks_shift) - (old_mclks >> tima_mclks_shift);
+			for(unsigned i = 0; i<num_ticks; i++) {
+				if(++tima == 0) {
+					tima = get<TIMER_MODULO>();
+					request_interrupt(interrupt_bits::TIMER);
+				}
 			}
 		}
 	}

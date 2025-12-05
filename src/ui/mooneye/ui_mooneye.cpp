@@ -24,6 +24,7 @@ struct MooneyeUI : UI, SerialIO {
 		if(argc >= 5) savedata = gb::load_file(argv[4]);
 		log_info("Loaded files");
 		emulator.emplace(std::move(bootrom), std::move(cartridgerom), std::move(savedata));
+		emulator->connect_serial(*this);
 	}
 
 	int main_loop() override {
