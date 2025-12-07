@@ -9,14 +9,13 @@
 #include <gb/joypad.h>
 
 #include <optional>
-#include <vector>
 #include <span>
 
 namespace gb::memory {
 
 class MMU {
 public:
-	MMU(std::vector<uint8_t> boot_rom_in, std::vector<uint8_t> cartridge_rom, std::optional<std::vector<uint8_t>> save_data, joypad::Joypad& joypad)
+	MMU(std::span<const uint8_t> boot_rom_in, std::span<const uint8_t> cartridge_rom, std::optional<std::span<const uint8_t>> save_data, joypad::Joypad& joypad)
 		: cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in)), joypad(joypad)
 	{}
 

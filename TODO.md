@@ -10,3 +10,4 @@ TODO:
 - nicer imgui font?
 - add debugger - can use imgui_memory_editor as a helper
 - split main into GUI + headless (headless for test running, etc)
+- move things into cpp files / actually think about compile times

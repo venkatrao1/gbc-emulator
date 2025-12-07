@@ -8,13 +8,14 @@
 #include <cstdint>
 #include <optional>
 #include <vector>
+#include <span>
 
 namespace gb::memory::mappers {
 
 struct NoMapper {
 	constexpr static size_t ROM_SIZE = 32'768;
 
-	NoMapper(std::vector<uint8_t> romIn, std::optional<std::vector<uint8_t>> save_data) {
+	NoMapper(std::span<const uint8_t> romIn, std::optional<std::span<const uint8_t>> save_data) {
 		if(save_data.has_value() && save_data->size() > 0) {
 			throw_exc("Received non-empty save data for NoMapper");
 		}
@@ -37,6 +38,8 @@ struct NoMapper {
 	void write(uint16_t addr, [[maybe_unused]] uint8_t data) {
 		log_warn("Wrote to ROM address {:#x}, ignoring", addr);
 	}
+
+	auto dump_save_data() const { return std::nullopt; }
 
 	std::array<std::uint8_t, ROM_SIZE> rom;
 };
