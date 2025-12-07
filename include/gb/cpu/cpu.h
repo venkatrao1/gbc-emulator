@@ -133,8 +133,8 @@ struct CPU {
 						return cycles;
 					case 1: { // LD [a16], SP
 						uint16_t addr = ld_imm16();
-						sp.lo = read(addr);
-						sp.hi = read(addr+1);
+						write(addr, sp.lo);
+						write(addr+1, sp.hi);
 						return cycles;
 					}
 				} else { // JR <flag>, e8 // JR e8
