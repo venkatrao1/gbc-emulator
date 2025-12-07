@@ -324,10 +324,10 @@ struct CPU {
 						[[fallthrough]];
 					case 037: { // LD HL, SP + e8
 						const uint16_t old_sp{sp};
-						const auto addend = static_cast<int16_t>(ld_imm8()); // signed addend
+						const auto addend = static_cast<int8_t>(ld_imm8()); // sign-extend
 						const uint16_t result = old_sp + addend;
 						((op_upper5bits == 037) ? hl : sp) = result;
-						flag_z(0), flag_n(0), flag_h(((old_sp >> 4) + (addend >> 4)) != (uint16_t{sp} >> 4)), flag_c((old_sp>>8) != sp.hi);
+						flag_z(0), flag_n(0), flag_h(((old_sp & 0xF) + (addend & 0xF)) > 0xF), flag_c(((old_sp & 0xFF) + (addend & 0xFF)) > 0xFF);
 						return cycles;
 					};
 				};
