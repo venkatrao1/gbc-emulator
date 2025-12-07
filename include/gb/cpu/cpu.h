@@ -215,8 +215,27 @@ struct CPU {
 					}
 				}
 			} else switch(op_upper5bits) {
-				case 4: // DAA
-					break;
+				case 4: { // DAA
+					uint8_t offset = 0;
+					// 2 cases here:
+					// half carry - when adding/subtracting we exchanged 16 here for 1 in the upper place.
+					//      for adding, we need to add 6 more to this place, for subtracting, we need to subtract 6.
+					// >9 - impossible to get this when subtracting without half carry, in which case we leave it alone. for addition, should add 6.
+					if((!flag_n() && ((a() & 0xF) > 0x9)) || flag_h()) {
+						offset = 0x6;
+					}
+					// very similar logic to above; note that 0x99 is used instead of 0xA0 because 0x9A will lead to an overflow in both digits.
+					// carry: if carry was already set for add/sub, we already overflowed/borrowed anyway.
+					// otherwise, carry occurs (for addition) when we have a number >99; same condition as adjusting.
+					if((!flag_n() && (a() > 0x99)) || flag_c()) {
+						offset |= 0x60;
+						flag_c(true);
+					}
+					if(flag_n()) a() -= offset;
+					else a() += offset;
+					flag_z(a() == 0), flag_h(0);
+					return cycles;
+				}
 				case 5: // CPL
 					flag_n(1), flag_h(1);
 					a() = ~a();
