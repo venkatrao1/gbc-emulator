@@ -285,11 +285,19 @@ struct CPU {
 					case 034: // LD [0xFF00+imm8], A
 						write(0xFF00 + ld_imm8(), a());
 						return cycles;
-					case 035: throw_exc();
 					case 036: // LD A, [0xFF00+imm8]
 						a() = read(0xFF00 + ld_imm8());
 						return cycles;
-					case 037: throw_exc();
+					case 035: // ADD SP, e8
+						cycles++;
+						[[fallthrough]];
+					case 037: { // LD HL, SP + e8
+						const uint16_t old_sp{sp};
+						const auto addend = static_cast<int16_t>(ld_imm8()); // signed addend
+						const uint16_t result = old_sp + addend;
+						((op_upper5bits == 037) ? hl : sp) = result;
+						flag_z(0), flag_n(0), flag_h(((old_sp >> 4) + (addend >> 4)) != (uint16_t{sp} >> 4)), flag_c((old_sp>>8) != sp.hi);
+					};
 				};
 				case 1: if(op_upper5bits & 1) switch(op_upper5bits) {
 					case 033: // RETI
@@ -302,9 +310,14 @@ struct CPU {
 					case 035: // JP HL
 						pc = hl;
 						return cycles;
-					default: throw_exc();
+					case 037: // LD SP, HL
+						cycles++;
+						sp = hl;
+						return cycles;
+					default: break; // TODO: unreachable?
 				} else { // POP r16
 					*(BC_DE_HL_AF[(op_upper5bits >> 1) & 3]) = pop16();
+					f() &= 0xF0; // f's upper bits cannot be set (POP AF)
 					return cycles;
 				}
 				case 2: if(op_upper5bits < 034) { // JP <flag>, a16
