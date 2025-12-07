@@ -59,24 +59,31 @@ struct MBC1 {
 			}
 			return;
 		}
-		if(addr < 0x2000) { // ram enable register
-			ram_enabled = ((data & 0xF) == 0xA);
-			return;
-		} else if (addr < 0x4000) { // ROM bank number
-			bank_select_lo = (data & 0b11111);
-			if(bank_select_lo == 0) bank_select_lo = 1;
-			return;
-		} else if (addr < 0x6000) { // RAM / high ROM bank select
-			bank_select_hi = (data & 0b11);
-			return;
-		} else if (addr < 0x8000) { // bank mode select
-			bank_mode_select = data & 1;
+		if(addr < 0x8000) {
+			if(addr < 0x2000) { // ram enable register
+				ram_enabled = ((data & 0xF) == 0xA);
+			} else if (addr < 0x4000) { // ROM bank number
+				bank_select_lo = (data & 0b11111);
+				if(bank_select_lo == 0) bank_select_lo = 1;
+			} else if (addr < 0x6000) { // RAM / high ROM bank select
+				bank_select_hi = (data & 0b11);
+			} else if (addr < 0x8000) { // bank mode select
+				bank_mode_select = data & 1;
+			}
+			log_debug("Wrote {:#04x} to MBC1 address {:#06x}, state:\n{}", data, addr, dump_state());
 			return;
 		}
 		throw_exc("Invalid write of {:#04x} to address {:#06x}", data, addr);
 	}
 
 	auto dump_save_data() const { return std::nullopt; }
+
+	std::string dump_state() const {
+		return std::format(
+			"bank_select_hi: {}, bank_select_lo: {}, bank_mode_select: {}, ram_enabled: {}",
+			bank_select_hi, bank_select_lo, bank_mode_select, ram_enabled
+		);
+	}
 
 private:
 	const uint8_t& get_ram(uint16_t addr) const {

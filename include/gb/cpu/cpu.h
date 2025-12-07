@@ -110,7 +110,12 @@ struct CPU {
 
 		if(!visited[pc]) {
 			log_debug("New PC: {:#06x}", pc);
-			visited[pc] = true;
+			visited.set(pc);
+		}
+		
+		if(!instrs_run[opcode]) {
+			log_debug("New opcode: {:#04x} == octal {:#03o} at PC = {:#06x}", opcode, opcode, pc);
+			instrs_run.set(opcode);
 		}
 
 		// The gb opcodes are easy to decode as octal.
@@ -144,7 +149,7 @@ struct CPU {
 				break;
 			case 1:
 				if(op_upper5bits & 1) { // ADD HL, r16
-					const auto& r16 = *(BC_DE_HL_SP[op_upper5bits >> 1]);
+					const uint16_t r16 = *(BC_DE_HL_SP[op_upper5bits >> 1]);
 					flag_n(0), flag_h(((hl & 0xFFF) + (r16 & 0xFFF)) > 0xFFF), flag_c((hl + r16) > 0xFFFF);
 					++cycles;
 					hl += r16;
@@ -274,6 +279,13 @@ struct CPU {
 					flag_z(a() == r8), flag_n(1), flag_h((a() & 0xF) < (r8 & 0xF)), flag_c(r8 > a());
 					a() -= r8;
 					return cycles;
+				case 3: { // SBC A, r8 // SBC A, n8
+					const bool c_old = flag_c();
+					flag_h(((a() & 0xF) - (r8 & 0xF) - c_old) < 0), flag_c((a() - r8 - c_old) < 0);
+					a() -= (r8 + c_old);
+					flag_z(a() == 0), flag_n(1);
+					return cycles;
+				}
 				case 4: // AND A, r8 // AND A, n8
 					a() &= r8;
 					flag_z(a() == 0), flag_n(0), flag_h(1), flag_c(0);
@@ -316,6 +328,7 @@ struct CPU {
 						const uint16_t result = old_sp + addend;
 						((op_upper5bits == 037) ? hl : sp) = result;
 						flag_z(0), flag_n(0), flag_h(((old_sp >> 4) + (addend >> 4)) != (uint16_t{sp} >> 4)), flag_c((old_sp>>8) != sp.hi);
+						return cycles;
 					};
 				};
 				case 1: if(op_upper5bits & 1) switch(op_upper5bits) {
@@ -488,6 +501,7 @@ private:
 	Reg16 sp{0xCAFE}, pc{};
 
 	std::bitset<0x10000> visited{};
+	std::bitset<0x100> instrs_run{};
 
 	bool IME{false}; // interrupt master enable
 	bool IME_enable_pending{false};
