@@ -438,13 +438,6 @@ struct CPU {
 							write_r8(bit_op_lower3bits, mask_combine(1 << bit_op_b3, read_r8(bit_op_lower3bits), new_bitvalue));
 							return cycles;
 						}
-
-						throw_exc(
-							"Unrecognized bitwise opcode: {:#04x} == octal {:#03o}\n"
-							"CPU dump:\n"
-							"{}",
-							bit_op, bit_op, dump_state()
-						);
 					}
 					case 036: // DI
 						IME_enable_pending = false;
@@ -499,7 +492,7 @@ struct CPU {
 
 private:
 	// regs - TODO seed if needed.
-	Reg16 af{0xCAFE}, bc{0xCAFE}, de{0xCAFE}, hl{0xCAFE};
+	Reg16 af{0xCA00}, bc{0xCAFE}, de{0xCAFE}, hl{0xCAFE};
 	Reg16 sp{0xCAFE}, pc{};
 
 	std::bitset<0x10000> visited{};

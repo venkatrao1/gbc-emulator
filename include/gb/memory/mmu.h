@@ -72,6 +72,10 @@ public:
 		} else if (addr < IO_MMAP_END) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			if(addr >= LCDS_BEGIN && addr < LCDS_END) return mem; // all locations readable, TODO populate in PPU
+			if(addr == KEY0 || addr == KEY1) {
+				log_warn("Read from CGB address {:#x}", addr);
+				return 0xFF; // shouldn't be reading these on DMG...
+			}
 			throw_exc("Unimplemented: memory read from {:#x}", addr);
 		} else {
 			return high_mem[addr - IO_MMAP_BEGIN];
@@ -159,10 +163,16 @@ public:
 				case LCD_WINDOW_X:
 					mem = data;
 					return;
-			} else if (addr == BOOT_ROM_SELECT) {
-				mem = data;
-				if(data) boot_rom_enabled = false;
-				return;
+			} else {
+				if(addr == KEY0 || addr == KEY1) {
+					log_warn("Write to CGB address {:#x}", addr);
+					return; // shouldn't be writing these on DMG...
+				}
+				if (addr == BOOT_ROM_SELECT) {
+					mem = data;
+					if(data) boot_rom_enabled = false;
+					return;
+				}
 			}
 			throw_exc("Unimplemented: memory write to {:#x}", addr);
 		} else {

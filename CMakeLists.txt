@@ -19,6 +19,7 @@ FetchContent_Declare(
     SDL2
 	URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.9.zip
 	SYSTEM
+	FIND_PACKAGE_ARGS NAMES SDL2 # use local SDL2 if available
 )
 
 FetchContent_Declare(

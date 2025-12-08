@@ -48,6 +48,8 @@ constexpr uint16_t OAM_DMA{0xFF46};
 constexpr uint16_t BG_PALETTE_DATA{0xFF47};
 constexpr uint16_t OBJ_PALETTE0_DATA{0xFF48}, OBJ_PALETTE1_DATA{0xFF49};
 constexpr uint16_t LCD_WINDOW_Y{0xFF4A}, LCD_WINDOW_X{0xFF4B};
+// CGB registers
+constexpr uint16_t KEY0{0xFF4C}, KEY1{0xFF4D};
 
 constexpr uint16_t BOOT_ROM_SELECT{0xFF50};
 constexpr uint16_t BOOT_ROM_BEGIN{0x0000}, BOOT_ROM_END{0x0100}; // at least true for DMG

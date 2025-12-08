@@ -40,8 +40,8 @@ public:
 	Cartridge(std::span<const uint8_t> rom, std::optional<std::span<const uint8_t>> save_data);
 
 	// for GB
-	uint8_t read(uint16_t addr) const { return std::visit([addr](auto mapper){return mapper.read(addr); }, mapper_variant); };
-	void write(uint16_t addr, uint8_t data) { std::visit([addr, data](auto mapper){mapper.write(addr, data);}, mapper_variant); };
+	uint8_t read(uint16_t addr) const { return std::visit([addr](const auto& mapper){return mapper.read(addr); }, mapper_variant); };
+	void write(uint16_t addr, uint8_t data) { std::visit([addr, data](auto& mapper){mapper.write(addr, data);}, mapper_variant); };
 
 	auto dump_save_data() const { return std::visit([](auto mapper) -> std::optional<std::vector<uint8_t>> { return mapper.dump_save_data(); }, mapper_variant); }
 

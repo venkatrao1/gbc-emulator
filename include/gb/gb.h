@@ -48,7 +48,7 @@ struct gameboy_emulator : SerialIO
 	}
 
 	// TODO: breakpoint for headless/tests
-	void run() {
+	[[noreturn]] void run() {
 		log_info("Starting gb");
 		while(true) run_frame();
 	}

@@ -27,6 +27,8 @@ struct MBC1 {
 			if(save_data->size() != ram.size()) throw_exc();
 			std::copy(save_data->begin(), save_data->end(), ram.begin());
 		}
+
+		log_info("Loaded MBC1 with ROM size {}, RAM size {}", rom.size(), ram.size());
 	}
 	
 	uint8_t read(uint16_t addr) const {
