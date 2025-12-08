@@ -96,6 +96,7 @@ struct CPU {
 				IME_enable_pending = false;
 				const uint16_t next_addr = 0x40 + (8 * static_cast<uint8_t>(*requested_interrupt));
 				--pc; ++cycles; // interrupt servicing happens after fetch opcode, backtrack one instruction
+				mmu.get<memory::addrs::INTERRUPT_FLAG>() ^= (1 << static_cast<uint8_t>(*requested_interrupt));
 				log_debug("Servicing interrupt {}, PC={:#06x}, jumping to {:#06x}", *requested_interrupt, pc, next_addr);
 				push16(pc);
 				// TODO: a second, higher prio interrupt can handle between the start of this routine and here, and could override this one.
@@ -150,6 +151,7 @@ struct CPU {
 			case 1:
 				if(op_upper5bits & 1) { // ADD HL, r16
 					const uint16_t r16 = *(BC_DE_HL_SP[op_upper5bits >> 1]);
+					// TODO: these flags are prob incorrect
 					flag_n(0), flag_h(((hl & 0xFFF) + (r16 & 0xFFF)) > 0xFFF), flag_c((hl + r16) > 0xFFFF);
 					++cycles;
 					hl += r16;
@@ -532,10 +534,9 @@ private:
 	constexpr void flag_h(bool newVal) { af.lo = (af.lo & ~(1 << H_BIT)) | (newVal << H_BIT); }
 	constexpr void flag_c(bool newVal) { af.lo = (af.lo & ~(1 << C_BIT)) | (newVal << C_BIT); }
 
-	[[nodiscard]] std::optional<memory::interrupt_bits> get_interrupt() {
+	[[nodiscard]] std::optional<memory::interrupt_bits> get_interrupt() const {
 		const uint8_t requested = mmu.get<memory::addrs::INTERRUPT_ENABLE>() & mmu.get<memory::addrs::INTERRUPT_FLAG>();
 		if(const auto lowest_set_bit = std::countr_zero(requested); lowest_set_bit < 5) {
-			mmu.get<memory::addrs::INTERRUPT_FLAG>() ^= (1 << lowest_set_bit);
 			return static_cast<memory::interrupt_bits>(lowest_set_bit);
 		}
 		else return std::nullopt;

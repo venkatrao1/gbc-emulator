@@ -45,30 +45,36 @@ public:
 			return oam[addr - OAM_BEGIN];
 		} else if (addr < ILLEGAL_MEM_END) {
 			throw_exc("Illegal memory read from {:#x}", addr);
-		} else if (addr < IO_MMAP_END) {
+		} else if (addr < AUDIOS_BEGIN) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			switch(addr) {
-				case SERIAL_DATA:
-					return mem;
-				case SERIAL_CONTROL: 
-					return (mem | 0b0111'1110); // TODO: on CGB bit 1 has function too
 				case JOYPAD: {
 					const auto lower_nybble = joypad.read_nybble(!get_bit(mem, 5),!get_bit(mem, 4));
 					return ((mem | 0b1100'0000) & 0xF0) | lower_nybble;
 				}
+				case SERIAL_DATA:
+					return mem;
+				case SERIAL_CONTROL: 
+					return (mem | 0b0111'1110); // TODO: on CGB bit 1 has function too
 				case DIVIDER:
 				case TIMER_COUNTER:
 				case TIMER_MODULO:
 					return mem;
 				case TIMER_CONTROL:
 					return mem | 0b1111'1000;
+				case INTERRUPT_FLAG:
+					return mem | 0b1110'0000;
 			}
+			log_warn("Read from disconnected address {:#x}", addr);
+			return 0xFF;
+		} else if (addr < AUDIOS_END) {
+			throw_exc("Unimplemented: memory read from {:#x}", addr);
+		} else if (addr < IO_MMAP_END) {
+			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			if(addr >= LCDS_BEGIN && addr < LCDS_END) return mem; // all locations readable, TODO populate in PPU
 			throw_exc("Unimplemented: memory read from {:#x}", addr);
-		} else if(addr < INTERRUPT_ENABLE) {
-			return high_mem[addr - IO_MMAP_BEGIN];
 		} else {
-			return get<INTERRUPT_ENABLE>() | 0b1110'0000;
+			return high_mem[addr - IO_MMAP_BEGIN];
 		}
 	}
 
