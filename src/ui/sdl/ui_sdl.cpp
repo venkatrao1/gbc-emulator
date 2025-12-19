@@ -4,10 +4,10 @@
 #include <gb/utils/sdl_log.h>
 
 #include <glad/gl.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 #include "imgui.h"
-#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
 
 #include <format>
@@ -19,9 +19,9 @@ namespace gb::ui::sdl {
 
 namespace {
 
-constexpr std::optional<joypad::joypad_bits> translate_keycode(const SDL_Keysym sym) {
+constexpr std::optional<joypad::joypad_bits> translate_keycode(const SDL_Scancode scancode) {
 	using enum joypad::joypad_bits;
-	switch(sym.scancode) {
+	switch(scancode) {
 		case SDL_SCANCODE_UP: return dpad_up;
 		case SDL_SCANCODE_DOWN: return dpad_down;
 		case SDL_SCANCODE_LEFT: return dpad_left;
@@ -108,12 +108,12 @@ struct SDLGui : UI {
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 		ImGui::StyleColorsDark();
 		// init SDL + OpenGL
-		window = sdl_checkptr(SDL_CreateWindow("GB", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 3 * ppu::LCD_WIDTH, 3 * ppu::LCD_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN));
+		window = sdl_checkptr(SDL_CreateWindow("GB", 3 * ppu::LCD_WIDTH, 3 * ppu::LCD_HEIGHT, SDL_WINDOW_OPENGL));
 		context = sdl_checkptr(SDL_GL_CreateContext(window));
 		const int version = gladLoadGL(reinterpret_cast<GLADloadfunc>(SDL_GL_GetProcAddress));
 		log_info("OpenGL version {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
-		if(!ImGui_ImplSDL2_InitForOpenGL(window, context)) throw_exc();
+		if(!ImGui_ImplSDL3_InitForOpenGL(window, context)) throw_exc();
 		if(!ImGui_ImplOpenGL3_Init()) throw_exc();
 	}
 
@@ -131,26 +131,26 @@ struct SDLGui : UI {
 		bool quit = false;
 		while( quit == false ){
 			for(SDL_Event e; SDL_PollEvent( &e );){ // handle SDL events
-				ImGui_ImplSDL2_ProcessEvent(&e);
+				ImGui_ImplSDL3_ProcessEvent(&e);
 				// TODO: filter keyboard/mouse events based on whether imgui is active
 				switch(e.type) {
-					case SDL_QUIT:
+					case SDL_EVENT_QUIT:
 						quit = true;
 						break;
-					case SDL_WINDOWEVENT:
-						if(e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == SDL_GetWindowID(window)) quit = true;
+					case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+						if(e.window.windowID == SDL_GetWindowID(window)) quit = true;
 						break;
-					case SDL_KEYDOWN:
+					case SDL_EVENT_KEY_DOWN:
 						if(io.WantCaptureKeyboard) break;
 						if(e.key.repeat) break;
-						if(const auto translated = translate_keycode(e.key.keysym); translated) emulator->press(*translated);
-						if(e.key.keysym.scancode == SDL_SCANCODE_D) {
+						if(const auto translated = translate_keycode(e.key.scancode); translated) emulator->press(*translated);
+						if(e.key.scancode == SDL_SCANCODE_D) {
 							debugger.visible = !debugger.visible;
 						}
 						break;
-					case SDL_KEYUP:
+					case SDL_EVENT_KEY_UP:
 						if(io.WantCaptureKeyboard) break;
-						if(const auto translated = translate_keycode(e.key.keysym); translated) emulator->release(*translated);
+						if(const auto translated = translate_keycode(e.key.scancode); translated) emulator->release(*translated);
 						break;
 				}
 			}
@@ -164,12 +164,12 @@ struct SDLGui : UI {
 			// Render GB screen
 			prepare_texture();
 			int viewportWidth, viewportHeight;
-			SDL_GL_GetDrawableSize(window, &viewportWidth, &viewportHeight);
+			SDL_GetWindowSizeInPixels(window, &viewportWidth, &viewportHeight);
 			glBlitFramebuffer(0, 0, ppu::LCD_WIDTH, ppu::LCD_HEIGHT, 0, 0, viewportWidth, viewportHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 			{ // IMGui
 				ImGui_ImplOpenGL3_NewFrame();
-				ImGui_ImplSDL2_NewFrame();
+				ImGui_ImplSDL3_NewFrame();
 				ImGui::NewFrame();
 
 				debugger.handle_frame(*emulator);
@@ -196,9 +196,9 @@ struct SDLGui : UI {
 
 	~SDLGui() override {
 		ImGui_ImplOpenGL3_Shutdown();
-		ImGui_ImplSDL2_Shutdown();
+		ImGui_ImplSDL3_Shutdown();
 		ImGui::DestroyContext();
-		if(context) SDL_GL_DeleteContext(context);
+		if(context) SDL_GL_DestroyContext(context);
 		if(window) SDL_DestroyWindow(window);
 		SDL_Quit();
 	}

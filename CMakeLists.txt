@@ -8,18 +8,18 @@ set(FETCHCONTENT_QUIET FALSE)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 foreach(SDL_DISABLED_FLAGS
-	ATOMIC RENDER HIDAPI POWER FILE CPUINFO FILESYSTEM LOCALE # subsystems
+	ATOMIC RENDER HIDAPI POWER THREADS TIMERS FILE CPUINFO FILESYSTEM LOCALE MISC # subsystems
 	OPENGLES RPI COCOA DIRECTX VIVANTE VULKAN METAL OFFSCREEN # other video backends (using OpenGL)
-	TEST
+	TEST_LIBRARY
 )
 	option("SDL_${SDL_DISABLED_FLAGS}" OFF)
 endforeach()
 
 FetchContent_Declare(
-    SDL2
-	URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.9.zip
+    SDL3
+	URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.28.zip
 	SYSTEM
-	FIND_PACKAGE_ARGS NAMES SDL2 # use local SDL2 if available
+	FIND_PACKAGE_ARGS NAMES SDL3 # use local SDL3 if available
 )
 
 FetchContent_Declare(
@@ -29,7 +29,7 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(
-	SDL2
+	SDL3
 	DearImGui
 )
 
@@ -37,11 +37,11 @@ FetchContent_MakeAvailable(
 file(GLOB DearImGui_sources ${dearimgui_SOURCE_DIR}/*.cpp)
 add_library(DearImGui STATIC EXCLUDE_FROM_ALL
 	${DearImGui_sources}
-	${dearimgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
+	${dearimgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
 	${dearimgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 target_include_directories(DearImGui PUBLIC ${dearimgui_SOURCE_DIR} INTERFACE ${dearimgui_SOURCE_DIR}/backends)
-target_link_libraries(DearImGui PRIVATE SDL2::SDL2)
+target_link_libraries(DearImGui PRIVATE SDL3::SDL3)
 
 add_library(glad STATIC EXCLUDE_FROM_ALL ${CMAKE_CURRENT_SOURCE_DIR}/ext/glad/src/gl.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ext/glad/include)
@@ -70,10 +70,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 add_executable(app)
 target_compile_features(app PUBLIC cxx_std_20)
 
-# SDL2main must come before SDL2
-if(TARGET SDL2::SDL2main)
-    target_link_libraries(app PRIVATE SDL2::SDL2main)
-endif()
-target_link_libraries(app PRIVATE SDL2::SDL2 glad DearImGui)
+target_link_libraries(app PRIVATE SDL3::SDL3 glad DearImGui)
 
 add_subdirectory(src)

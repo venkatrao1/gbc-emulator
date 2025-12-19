@@ -7,7 +7,7 @@ namespace gb::logging {
 
 namespace {
 
-constexpr static std::array<std::string_view, SDL_NUM_LOG_PRIORITIES> PRIO_NAMES{
+constexpr static std::array<std::string_view, SDL_LOG_PRIORITY_COUNT> PRIO_NAMES{
     "",
     "VERBOSE",
     "DEBUG",
@@ -17,7 +17,7 @@ constexpr static std::array<std::string_view, SDL_NUM_LOG_PRIORITIES> PRIO_NAMES
     "CRITICAL",
 };
 
-constexpr std::array<std::string_view, SDL_LOG_CATEGORY_RESERVED1> CATEGORY_NAMES{
+constexpr std::array<std::string_view, SDL_LOG_CATEGORY_GPU+1> CATEGORY_NAMES{
     "APP",
     "ERROR",
     "ASSERT",
@@ -27,6 +27,7 @@ constexpr std::array<std::string_view, SDL_LOG_CATEGORY_RESERVED1> CATEGORY_NAME
     "RENDER",
     "INPUT",
     "TEST",
+    "GPU",
 };
 
 // void* param is userdata - unused
@@ -39,8 +40,16 @@ void sdl_log(void*, int category, SDL_LogPriority prio, const char* msg){
 }
 
 void init_sdl_logging(SDL_LogPriority lvl) {
-    SDL_LogSetAllPriority(lvl);
-    SDL_LogSetOutputFunction(sdl_log, nullptr);
+    SDL_SetLogPriorities(lvl);
+    SDL_SetLogOutputFunction(sdl_log, nullptr);
+}
+
+}
+
+namespace gb {
+
+void sdl_checked(bool success, logging::SourceLocation sloc) {
+    if(!success) throw_exc({"SDL error: {}", sloc}, SDL_GetError());
 }
 
 }
