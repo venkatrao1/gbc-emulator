@@ -10,14 +10,16 @@ code/dev improvements:
 	- CI? probably means getting a WSL/linux build working
 	- test TASes (locally due to copyrighted ROMs)
 - nicer imgui font?
+- clang-tidy?
 - add debugger (+ disassembler?) - can use imgui_memory_editor as a helper
 - split main into GUI + headless (headless for test running, etc)
 - move things into cpp files / actually think about compile times
 
 UX improvements:
 - make an actually usable UI
-- web UI??
-- use open source boot ROM?
+- savestates - support SameBoy's BESS format
 - runahead?
 - screen filters? (based on real hardware, or upscaling)
 - audio filters?
+- use open source boot ROM?
+- web UI??

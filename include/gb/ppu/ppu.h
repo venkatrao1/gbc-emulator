@@ -20,7 +20,6 @@ struct PPU {
 		// starting state == completely off, most things zeroed.
 		// starting state == end of vblank
 		// TODO: the real starting state should be on line 0
-		// TODO: make sure all state is reset, maybe invoke constructor
 		was_last_off = true;
 		stat_interrupt_wanted = false;
 		frame = {};

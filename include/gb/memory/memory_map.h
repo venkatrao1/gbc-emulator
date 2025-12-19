@@ -35,9 +35,8 @@ constexpr uint16_t SERIAL_DATA{0xFF01}, SERIAL_CONTROL{0xFF02};
 constexpr uint16_t DIVIDER{0xFF04};
 constexpr uint16_t TIMER_COUNTER{0xFF05}, TIMER_MODULO{0xFF06}, TIMER_CONTROL{0xFF07};
 constexpr uint16_t INTERRUPT_FLAG{0xFF0F};
-// TODO: audio
-constexpr uint16_t AUDIOS_BEGIN{0xFF10}, AUDIOS_END{0xFF27};
-constexpr uint16_t WAVETABLE_RAM_BEGIN{0xFF30}, WAVETABLE_RAM_END{0xFF40};
+// Audio
+constexpr uint16_t AUDIOS_BEGIN{0xFF10}, AUDIOS_END{0xFF40}; // all reads/writes here passed through to APU
 // LCD/Graphics
 constexpr uint16_t LCDS_BEGIN{0xFF40}, LCDS_END{0xFF4C};
 constexpr uint16_t LCD_CONTROL{0xFF40};
@@ -50,6 +49,7 @@ constexpr uint16_t OBJ_PALETTE0_DATA{0xFF48}, OBJ_PALETTE1_DATA{0xFF49};
 constexpr uint16_t LCD_WINDOW_Y{0xFF4A}, LCD_WINDOW_X{0xFF4B};
 // CGB registers
 constexpr uint16_t KEY0{0xFF4C}, KEY1{0xFF4D};
+constexpr uint16_t PCM12{0xFF76}, PCM34{0xFF77};
 
 constexpr uint16_t BOOT_ROM_SELECT{0xFF50};
 constexpr uint16_t BOOT_ROM_BEGIN{0x0000}, BOOT_ROM_END{0x0100}; // at least true for DMG

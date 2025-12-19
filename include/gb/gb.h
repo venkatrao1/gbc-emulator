@@ -5,6 +5,7 @@
 #include <gb/memory/mmu.h>
 #include <gb/memory/serial.h>
 #include <gb/ppu/ppu.h>
+#include <gb/apu/apu.h>
 #include <gb/utils/log.h>
 
 namespace gb
@@ -14,7 +15,7 @@ namespace gb
 struct gameboy_emulator : SerialIO
 {
 	gameboy_emulator(std::vector<uint8_t> boot_rom, std::vector<uint8_t> cartridge_rom, std::optional<std::vector<uint8_t>> save_data)
-		: mmu{std::move(boot_rom), std::move(cartridge_rom), std::move(save_data), joypad}
+		: mmu{std::move(boot_rom), std::move(cartridge_rom), std::move(save_data), joypad, apu}
 	{
 	}
 
@@ -28,9 +29,12 @@ struct gameboy_emulator : SerialIO
 				const auto old_mclks = total_mclks;
 				total_mclks += cpu_mclks;
 				mmu.handle_timers(old_mclks, total_mclks);
-				const auto cpu_tclks = cpu_mclks * 4; // TODO not true for CGB
+				const auto cpu_tclks = cpu_mclks * 4; // TODO not true for CGB - APU/GPU run at const speed
 				total_tclks += cpu_tclks;
-				for(int i = 0; i<cpu_tclks; i++) ppu.tclk_tick();
+				for(int i = 0; i<cpu_tclks; i++) {
+					ppu.tclk_tick();
+					apu.tclk_tick();
+				}
 			}
 		} catch (...) {
 			log_error("Exception raised, dumping state:\n{}", dump_state());
@@ -87,6 +91,7 @@ struct gameboy_emulator : SerialIO
 private:
 	joypad::Joypad joypad;
 public:
+	apu::APU apu{};
 	memory::MMU mmu;
 	cpu::CPU cpu{mmu};
 	ppu::PPU ppu{mmu};

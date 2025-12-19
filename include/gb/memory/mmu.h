@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gb/apu/apu.h>
 #include <gb/memory/cartridge/cartridge.h>
 #include <gb/memory/memory_map.h>
 #include <gb/memory/serial.h>
@@ -15,8 +16,8 @@ namespace gb::memory {
 
 class MMU {
 public:
-	MMU(std::span<const uint8_t> boot_rom_in, std::span<const uint8_t> cartridge_rom, std::optional<std::span<const uint8_t>> save_data, joypad::Joypad& joypad)
-		: cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in)), joypad(joypad)
+	MMU(std::span<const uint8_t> boot_rom_in, std::span<const uint8_t> cartridge_rom, std::optional<std::span<const uint8_t>> save_data, joypad::Joypad& joypad, apu::APU& apu_in)
+		: apu{apu_in}, cartridge(std::move(cartridge_rom), std::move(save_data)), boot_rom(get_boot_rom(boot_rom_in)), joypad(joypad)
 	{}
 
 	// right now I'm throwing on behavior I never expect to see (illegal reads/writes)
@@ -68,7 +69,7 @@ public:
 			log_warn("Read from disconnected address {:#x}", addr);
 			return 0xFF;
 		} else if (addr < AUDIOS_END) {
-			throw_exc("Unimplemented: memory read from {:#x}", addr);
+			return apu.read(addr);
 		} else if (addr < IO_MMAP_END) {
 			const auto& mem = high_mem[addr - IO_MMAP_BEGIN];
 			if(addr >= LCDS_BEGIN && addr < LCDS_END) return mem; // all locations readable, TODO populate in PPU
@@ -131,11 +132,7 @@ public:
 					mem = data;
 					return;
 			} else if(addr < AUDIOS_END) {
-				// TODO: audio unimplemented - for now allow writes
-				mem = data;
-				return;
-			} else if(addr < WAVETABLE_RAM_END) {
-				mem = data;
+				apu.write(addr, data);
 				return;
 			} else if(addr < LCDS_END) switch(addr) {
 				// NOTE: only listing writable regs, anything else falls through
@@ -243,6 +240,7 @@ public:
 	}
 
 private:
+	apu::APU& apu;
 	Cartridge cartridge;
 	bool boot_rom_enabled{true};
 	const std::array<uint8_t, 256> boot_rom;
